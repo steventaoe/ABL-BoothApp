@@ -1,0 +1,39 @@
+:root {
+  --bg-color: #121212;
+  --primary-text-color: #E0E0E0;
+  --accent-color: #03DAC6;
+  --card-bg-color: #101010;
+  --border-color: #2c2c2c;
+  --success-color: #4CAF50;
+  --error-color: #F44336;
+}
+
+body {
+  background-color: var(--bg-color);
+  color: var(--primary-text-color);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  margin: 0;
+}
+
+#app {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+/* 可以在这里添加更多全局样式，例如按钮、输入框等 */
+.btn {
+  background-color: transparent;
+  border: 1px solid var(--accent-color);
+  color: var(--accent-color);
+  padding: 10px 20px;
+  cursor: pointer;
+  transition: background-color 0.3s, color 0.3s;
+  border-radius: 4px;
+  font-weight: bold;
+}
+
+.btn:hover {
+  background-color: var(--accent-color);
+  color: var(--bg-color);
+}
