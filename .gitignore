@@ -1,0 +1,66 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# --- 系统文件 ---
+.DS_Store
+Thumbs.db
+
+# --- IDE 配置 (可选，建议忽略) ---
+.vscode/
+.idea/
+
+# --- Python (Flask) ---
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+*.log
+# 敏感信息千万别传！
+.env
+instance/
+.pytest_cache/
+
+# --- Node.js (Vue) ---
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+dist/
+dist-ssr/
+coverage/
+
+# --- Rust (Tauri 预备) ---
+# Rust 编译产物非常大，必须忽略
+/src-tauri/target/
+/target/
+**/*.rs.bk
+
+# --- Tauri ---
+# 忽略 Tauri 的构建产物
+src-tauri/gen/android/
+src-tauri/gen/schemas/
