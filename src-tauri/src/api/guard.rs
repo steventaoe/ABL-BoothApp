@@ -1,12 +1,15 @@
 // src/api/guard.rs
 
-use axum::{
-    extract::FromRequestParts,
-    http::{request::Parts, header},
-    async_trait,
+use crate::{
+    state::AppState,
+    utils::security::{AuthError, Claims},
 };
-use jsonwebtoken::{decode, Validation, DecodingKey};
-use crate::{state::AppState, utils::security::{Claims, AuthError}};
+use axum::{
+    async_trait,
+    extract::FromRequestParts,
+    http::{header, request::Parts},
+};
+use jsonwebtoken::{decode, DecodingKey, Validation};
 
 // 这是一个"空结构体"包装器，专门用于标记"必须是管理员"
 #[allow(dead_code)]
@@ -18,10 +21,14 @@ pub struct AdminOnly(pub Claims);
 impl FromRequestParts<AppState> for Claims {
     type Rejection = AuthError;
 
-    async fn from_request_parts(parts: &mut Parts, state: &AppState) -> Result<Self, Self::Rejection> {
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &AppState,
+    ) -> Result<Self, Self::Rejection> {
         // A. 尝试从 Authorization Header 获取 (Bearer Token)
         let token = if let Some(auth_header) = parts.headers.get(header::AUTHORIZATION) {
-            auth_header.to_str()
+            auth_header
+                .to_str()
                 .map_err(|_| AuthError::InvalidToken)?
                 .strip_prefix("Bearer ")
                 .unwrap_or_default()
@@ -32,7 +39,9 @@ impl FromRequestParts<AppState> for Claims {
         // B. 如果 Header 没有，尝试从 Cookie 获取
         // 为了不引入 axum-extra 增加复杂度，这里手动解析一下 Cookie
         let token = if token.is_empty() {
-             parts.headers.get(header::COOKIE)
+            parts
+                .headers
+                .get(header::COOKIE)
                 .and_then(|value| value.to_str().ok())
                 .and_then(|cookie_str| {
                     cookie_str.split(';').find_map(|s| {
@@ -70,7 +79,10 @@ impl FromRequestParts<AppState> for Claims {
 impl FromRequestParts<AppState> for AdminOnly {
     type Rejection = AuthError;
 
-    async fn from_request_parts(parts: &mut Parts, state: &AppState) -> Result<Self, Self::Rejection> {
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &AppState,
+    ) -> Result<Self, Self::Rejection> {
         // 复用上面的 Claims 提取逻辑
         let claims = Claims::from_request_parts(parts, state).await?;
 

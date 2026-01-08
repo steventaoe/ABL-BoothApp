@@ -5,47 +5,27 @@ use axum::{
     routing::get,
     Router,
 };
-use rust_xlsxwriter::Workbook;
+use chrono::{NaiveDateTime, Timelike};
+
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+use std::collections::HashMap;
 
-use crate::{
-    state::AppState,
-    utils::security::Claims,
-    db::models::Event,
+use crate::{db::models::Event, state::AppState, utils::security::Claims};
+
+use rust_xlsxwriter::{
+    Color, Format, FormatAlign, FormatBorder, Workbook, Worksheet,
 };
+use chrono::Local; // 用于在Excel中显示生成时间（可选）
 
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/:event_id/stats", get(get_event_stats))
         .route("/:event_id/sales_summary", get(get_sales_summary))
-        .route("/:event_id/sales_summary/download", get(download_sales_summary))
-}
-
-// ==========================================
-// DTOs
-// ==========================================
-
-#[derive(Serialize)]
-struct StatsResponse {
-    event_info: Event,
-    summary: SummaryStats,
-    product_details: Vec<ProductStat>,
-}
-
-#[derive(Serialize, FromRow, Default)]
-struct SummaryStats {
-    total_revenue: f64,
-    completed_orders_count: i64,
-    total_items_sold: i64,
-}
-
-#[derive(Serialize, FromRow)]
-struct ProductStat {
-    product_id: i64,
-    name: String,
-    sold_count: i64,
-    revenue: f64,
+        .route(
+            "/:event_id/sales_summary/download",
+            get(download_sales_summary),
+        )
 }
 
 #[derive(Deserialize)]
@@ -54,7 +34,18 @@ struct SummaryQuery {
     product_code: Option<String>,
     start_date: Option<String>,
     end_date: Option<String>,
-    interval_minutes: Option<i64>, // 30 or 60
+    interval_minutes: Option<i64>,
+}
+
+#[derive(Serialize, FromRow)]
+struct ProductSalesItem {
+    product_id: i64,
+    product_code: String,
+    product_name: String,
+    unit_price: f64,
+    initial_stock: i64,
+    total_quantity: i64,
+    total_revenue_per_item: f64,
 }
 
 // ==========================================
@@ -69,18 +60,23 @@ async fn get_event_stats(
         return e.into_response();
     }
 
-    // 1. 获取场次信息
     let event = match sqlx::query_as::<_, Event>("SELECT * FROM events WHERE id = ?")
         .bind(event_id)
         .fetch_optional(&state.db)
         .await
-        .unwrap_or(None) 
+        .unwrap_or(None)
     {
         Some(e) => e,
         None => return (StatusCode::NOT_FOUND, "Event not found").into_response(),
     };
 
-    // 2. 获取汇总数据 (只统计 completed 订单)
+    #[derive(Serialize, FromRow)]
+    struct SummaryStats {
+        total_revenue: f64,
+        completed_orders_count: i64,
+        total_items_sold: i64,
+    }
+
     let summary: SummaryStats = sqlx::query_as(
         r#"
         SELECT 
@@ -89,39 +85,54 @@ async fn get_event_stats(
             COALESCE(SUM(oi.quantity), 0) as total_items_sold
         FROM orders o
         LEFT JOIN order_items oi ON o.id = oi.order_id
-        WHERE o.event_id = ? AND o.status = 'completed'
-        "#
+        WHERE o.event_id = ? AND o.status != 'cancelled'
+        "#,
     )
     .bind(event_id)
     .fetch_one(&state.db)
     .await
-    .unwrap_or_default();
+    .unwrap_or_else(|_| SummaryStats {
+        total_revenue: 0.0,
+        completed_orders_count: 0,
+        total_items_sold: 0,
+    });
 
-    // 3. 获取商品销售详情
-    let product_details = sqlx::query_as::<_, ProductStat>(
+    let product_details = sqlx::query_as::<_, ProductSalesItem>(
         r#"
         SELECT 
             oi.product_id,
-            oi.product_name as name,
-            SUM(oi.quantity) as sold_count,
-            SUM(oi.product_price * oi.quantity) as revenue
+            COALESCE(p.product_code, '') as product_code,
+            oi.product_name,
+            oi.product_price as unit_price,
+            COALESCE(p.initial_stock, 0) as initial_stock,
+            SUM(oi.quantity) as total_quantity,
+            SUM(oi.product_price * oi.quantity) as total_revenue_per_item
         FROM order_items oi
         JOIN orders o ON oi.order_id = o.id
-        WHERE o.event_id = ? AND o.status = 'completed'
-        GROUP BY oi.product_id, oi.product_name
-        ORDER BY revenue DESC
-        "#
+        LEFT JOIN products p ON oi.product_id = p.id
+        WHERE o.event_id = ? AND o.status != 'cancelled'
+        GROUP BY oi.product_id, oi.product_name, oi.product_price, p.product_code, p.initial_stock
+        ORDER BY total_revenue_per_item DESC
+        "#,
     )
     .bind(event_id)
     .fetch_all(&state.db)
     .await
     .unwrap_or_default();
 
+    #[derive(Serialize)]
+    struct StatsResponse {
+        event_info: Event,
+        summary: SummaryStats,
+        product_details: Vec<ProductSalesItem>,
+    }
+
     Json(StatsResponse {
         event_info: event,
         summary,
         product_details,
-    }).into_response()
+    })
+    .into_response()
 }
 
 // ==========================================
@@ -131,47 +142,188 @@ async fn get_sales_summary(
     State(state): State<AppState>,
     claims: Claims,
     Path(event_id): Path<i64>,
-    Query(_params): Query<SummaryQuery>,
+    Query(params): Query<SummaryQuery>,
 ) -> impl IntoResponse {
     if let Err(e) = check_read_permission(&claims, event_id) {
         return e.into_response();
     }
 
-    // 这里为了简化演示，我们返回按时间排序的原始订单数据，
-    // 或者你可以使用 SQLite 的 strftime 进行分组。
-    // 鉴于移动端 SQLite 版本差异，我们在 Rust 层做分组可能更灵活，
-    // 但为了性能，这里演示简单的 SQL 时间分组 (按小时)。
-    
-    #[derive(Serialize, FromRow)]
-    struct TimeSeriesPoint {
-        time_bucket: String,
-        revenue: f64,
-        order_count: i64,
+    // 检查展会存在性
+    let event = match sqlx::query_as::<_, Event>("SELECT * FROM events WHERE id = ?")
+        .bind(event_id)
+        .fetch_optional(&state.db)
+        .await
+        .unwrap_or(None)
+    {
+        Some(e) => e,
+        None => return (StatusCode::NOT_FOUND, "Event not found").into_response(),
+    };
+
+    // 1. 获取商品销售详情（支持 product_code、start_date、end_date 筛选）
+    let mut summary_query = String::from(
+        r#"
+        SELECT 
+            oi.product_id,
+            COALESCE(p.product_code, '') as product_code,
+            oi.product_name,
+            oi.product_price as unit_price,
+            COALESCE(p.initial_stock, 0) as initial_stock,
+            SUM(oi.quantity) as total_quantity,
+            SUM(oi.product_price * oi.quantity) as total_revenue_per_item
+        FROM order_items oi
+        JOIN orders o ON oi.order_id = o.id
+        LEFT JOIN products p ON oi.product_id = p.id
+        WHERE o.event_id = ? AND o.status != 'cancelled'
+        "#,
+    );
+
+    let mut sql_params: Vec<String> = vec![event_id.to_string()];
+
+    // 条件筛选
+    if let Some(ref code) = params.product_code {
+        summary_query.push_str(" AND p.product_code = ?");
+        sql_params.push(code.clone());
+    }
+    if let Some(ref start) = params.start_date {
+        summary_query.push_str(" AND DATE(o.created_at) >= ?");
+        sql_params.push(start.clone());
+    }
+    if let Some(ref end) = params.end_date {
+        summary_query.push_str(" AND DATE(o.created_at) <= ?");
+        sql_params.push(end.clone());
     }
 
-    // SQLite 时间格式化: %Y-%m-%d %H:00
-    let sql = r#"
-        SELECT 
-            strftime('%Y-%m-%d %H:00', created_at) as time_bucket,
-            SUM(total_amount) as revenue,
-            COUNT(id) as order_count
-        FROM orders
-        WHERE event_id = ? AND status = 'completed'
-        GROUP BY time_bucket
-        ORDER BY time_bucket ASC
-    "#;
+    summary_query.push_str(
+        r#"
+        GROUP BY oi.product_id, oi.product_name, oi.product_price, p.product_code, p.initial_stock
+        ORDER BY total_revenue_per_item DESC
+        "#,
+    );
 
-    let points = sqlx::query_as::<_, TimeSeriesPoint>(sql)
-        .bind(event_id)
-        .fetch_all(&state.db)
-        .await
-        .unwrap_or_default();
+    // 执行动态 SQL 查询
+    let summary = {
+        let mut q = sqlx::query_as::<_, ProductSalesItem>(&summary_query);
+        // 绑定所有参数（第一个是 event_id）
+        q = q.bind(&sql_params[0]);
+        for param in &sql_params[1..] {
+            q = q.bind(param);
+        }
+        q.fetch_all(&state.db).await.unwrap_or_default()
+    };
 
-    Json(points).into_response()
+    // 2. 获取总销售额
+    let total_revenue: (f64,) = sqlx::query_as(
+        "SELECT COALESCE(SUM(o.total_amount), 0.0) FROM orders o WHERE o.event_id = ? AND o.status != 'cancelled'"
+    )
+    .bind(event_id)
+    .fetch_one(&state.db)
+    .await
+    .unwrap_or((0.0,));
+
+    // 3. 获取时间序列数据（用于图表）
+    #[derive(FromRow)]
+    struct TimePoint {
+        created_at: NaiveDateTime,
+        total_amount: f64,
+    }
+
+    let mut ts_query = String::from(
+        r#"
+        SELECT o.created_at, o.total_amount
+        FROM orders o
+        WHERE o.event_id = ? AND o.status != 'cancelled'
+        "#,
+    );
+
+    let mut ts_params: Vec<String> = vec![event_id.to_string()];
+
+    // 如果指定了 product_code，需要在时间序列查询中也进行过滤
+    if let Some(ref code) = params.product_code {
+        ts_query.push_str(
+            r#"
+            AND EXISTS (
+                SELECT 1 FROM order_items oi2
+                LEFT JOIN products p2 ON oi2.product_id = p2.id
+                WHERE oi2.order_id = o.id AND p2.product_code = ?
+            )
+            "#,
+        );
+        ts_params.push(code.clone());
+    }
+    if let Some(ref start) = params.start_date {
+        ts_query.push_str(" AND DATE(o.created_at) >= ?");
+        ts_params.push(start.clone());
+    }
+    if let Some(ref end) = params.end_date {
+        ts_query.push_str(" AND DATE(o.created_at) <= ?");
+        ts_params.push(end.clone());
+    }
+
+    ts_query.push_str(" ORDER BY o.created_at ASC");
+
+    let time_points = {
+        let mut q = sqlx::query_as::<_, TimePoint>(&ts_query);
+        q = q.bind(&ts_params[0]);
+        for param in &ts_params[1..] {
+            q = q.bind(param);
+        }
+        q.fetch_all(&state.db).await.unwrap_or_default()
+    };
+
+    // 4. 按时间粒度分组（默认 60 分钟）
+    let interval_minutes = params.interval_minutes.unwrap_or(60);
+    let interval_val = if interval_minutes == 30 { 30 } else { 60 };
+
+    let mut bucketed: HashMap<String, f64> = HashMap::new();
+    for point in time_points {
+        let floored_minute =
+            (point.created_at.minute() / interval_val as u32) * interval_val as u32;
+        let bucket_time = point
+            .created_at
+            .with_minute(floored_minute)
+            .unwrap()
+            .with_second(0)
+            .unwrap();
+        let key = bucket_time.format("%Y-%m-%d %H:%M").to_string();
+        *bucketed.entry(key).or_insert(0.0) += point.total_amount;
+    }
+
+    // 5. 转换为时间序列格式
+    #[derive(Serialize)]
+    struct TimeseriesItem {
+        date: String,
+        revenue: f64,
+    }
+
+    let mut timeseries: Vec<TimeseriesItem> = bucketed
+        .into_iter()
+        .map(|(date, revenue)| TimeseriesItem {
+            date,
+            revenue: (revenue * 100.0).round() / 100.0,
+        })
+        .collect();
+
+    // 按时间排序
+    timeseries.sort_by(|a, b| a.date.cmp(&b.date));
+
+    #[derive(Serialize)]
+    struct SalesResponse {
+        event_name: String,
+        total_revenue: f64,
+        summary: Vec<ProductSalesItem>,
+        timeseries: Vec<TimeseriesItem>,
+    }
+
+    Json(SalesResponse {
+        event_name: event.name,
+        total_revenue: (total_revenue.0 * 100.0).round() / 100.0,
+        summary,
+        timeseries,
+    })
+    .into_response()
 }
-
 // ==========================================
-// 3. 导出 Excel (Excel Download)
+// 3. 导出 Excel (Excel Download) - 美化版
 // ==========================================
 async fn download_sales_summary(
     State(state): State<AppState>,
@@ -182,88 +334,218 @@ async fn download_sales_summary(
         return e.into_response();
     }
 
-    // 1. 获取数据 (复用 product_details 的逻辑，但可能需要更详细的数据)
-    // 这里我们导出一份详细的商品销售表
-    let details = sqlx::query_as::<_, ProductStat>(
+    // 获取展会名称
+    let event_name = sqlx::query_as::<_, Event>("SELECT * FROM events WHERE id = ?")
+        .bind(event_id)
+        .fetch_optional(&state.db)
+        .await
+        .unwrap_or(None)
+        .map(|e| e.name)
+        .unwrap_or_else(|| format!("Event {}", event_id));
+
+    // 获取数据
+    let details = sqlx::query_as::<_, ProductSalesItem>(
         r#"
         SELECT 
             oi.product_id,
-            oi.product_name as name,
-            SUM(oi.quantity) as sold_count,
-            SUM(oi.product_price * oi.quantity) as revenue
+            COALESCE(p.product_code, '') as product_code,
+            oi.product_name,
+            oi.product_price as unit_price,
+            COALESCE(p.initial_stock, 0) as initial_stock,
+            SUM(oi.quantity) as total_quantity,
+            SUM(oi.product_price * oi.quantity) as total_revenue_per_item
         FROM order_items oi
         JOIN orders o ON oi.order_id = o.id
-        WHERE o.event_id = ? AND o.status = 'completed'
-        GROUP BY oi.product_id, oi.product_name
-        ORDER BY revenue DESC
-        "#
+        LEFT JOIN products p ON oi.product_id = p.id
+        WHERE o.event_id = ? AND o.status != 'cancelled'
+        GROUP BY oi.product_id, oi.product_name, oi.product_price, p.product_code, p.initial_stock
+        ORDER BY total_revenue_per_item DESC
+        "#,
     )
     .bind(event_id)
     .fetch_all(&state.db)
     .await
     .unwrap_or_default();
 
-    // 2. 创建 Excel 工作簿到临时文件
-    use std::fs;
     use axum::http::header::{HeaderMap, HeaderValue};
-    
+    use std::fs;
+
     let temp_dir = std::env::temp_dir();
-    let filename = format!("sales_report_event_{}.xlsx", event_id);
+    let filename = format!("sales_report_{}.xlsx", event_id);
     let temp_file = temp_dir.join(&filename);
 
-    let mut workbook = Workbook::new(temp_file.to_str().unwrap_or("report.xlsx"));
+    // --- Excel 生成逻辑 ---
+    let mut workbook = Workbook::new();
     let worksheet = workbook.add_worksheet();
 
-    // 创建默认格式对象（无特殊格式）
-    let default_format = rust_xlsxwriter::Format::new();
+    // 1. 样式定义
+    let title_format = Format::new()
+        .set_bold()
+        .set_font_size(16)
+        .set_align(FormatAlign::Center)
+        .set_align(FormatAlign::VerticalCenter);
 
-    // 写表头
-    let _ = worksheet.write_string(0, 0, "商品ID", &default_format);
-    let _ = worksheet.write_string(0, 1, "商品名称", &default_format);
-    let _ = worksheet.write_string(0, 2, "销售数量", &default_format);
-    let _ = worksheet.write_string(0, 3, "销售总额", &default_format);
+    let header_format = Format::new()
+        .set_bold()
+        .set_background_color(Color::RGB(0xDDEBF7))
+        .set_border(FormatBorder::Thin)
+        .set_align(FormatAlign::Center)
+        .set_align(FormatAlign::VerticalCenter);
 
-    // 写数据
-    for (i, item) in details.iter().enumerate() {
-        let row = (i + 1) as u32;
-        let _ = worksheet.write_number(row, 0, item.product_id as f64, &default_format);
-        let _ = worksheet.write_string(row, 1, &item.name, &default_format);
-        let _ = worksheet.write_number(row, 2, item.sold_count as f64, &default_format);
-        let _ = worksheet.write_number(row, 3, item.revenue, &default_format);
+    let text_format = Format::new()
+        .set_border(FormatBorder::Thin)
+        .set_align(FormatAlign::Left);
+    
+    let center_format = Format::new()
+        .set_border(FormatBorder::Thin)
+        .set_align(FormatAlign::Center);
+
+    let currency_format = Format::new()
+        .set_border(FormatBorder::Thin)
+        .set_align(FormatAlign::Right)
+        .set_num_format("#,##0.00");
+
+    let total_row_format = Format::new()
+        .set_bold()
+        .set_background_color(Color::RGB(0xF2F2F2))
+        .set_border(FormatBorder::Thin)
+        .set_align(FormatAlign::Center);
+
+    let total_currency_format = Format::new()
+        .set_bold()
+        .set_background_color(Color::RGB(0xF2F2F2))
+        .set_border(FormatBorder::Thin)
+        .set_align(FormatAlign::Right)
+        .set_num_format("#,##0.00");
+
+    // 2. 设置列宽
+    let _ = worksheet.set_column_width(0, 15);
+    let _ = worksheet.set_column_width(1, 25);
+    let _ = worksheet.set_column_width(2, 12);
+    let _ = worksheet.set_column_width(3, 12);
+    let _ = worksheet.set_column_width(4, 15);
+    let _ = worksheet.set_column_width(5, 12);
+    let _ = worksheet.set_column_width(6, 15);
+
+    // 3. 写入标题 (merge_range 保持不变，它支持带格式)
+    let title_text = format!("{} 展会销售记录表", event_name);
+    let _ = worksheet.merge_range(0, 0, 0, 6, &title_text, &title_format);
+
+    let time_str = format!("生成时间: {}", Local::now().format("%Y-%m-%d %H:%M"));
+    let _ = worksheet.merge_range(1, 0, 1, 6, &time_str, &Format::new().set_align(FormatAlign::Right));
+
+    // 4. 写入表头
+    let headers = ["制品编号", "制品名", "初始数量","结束数量", "单价", "销售量", "销售额"];
+    let header_row_idx = 2;
+    for (col, text) in headers.iter().enumerate() {
+        // 修改点：使用 write_string_with_format
+        let _ = worksheet.write_string_with_format(header_row_idx, col as u16, *text, &header_format);
     }
 
-    // 3. 完成写入并读取为 Buffer
-    drop(worksheet);
-    match workbook.close() {
+    // 冻结窗格
+    let _ = worksheet.set_freeze_panes(header_row_idx + 1, 0);
+
+    // 5. 写入数据
+    let mut start_row = header_row_idx + 1;
+    let mut sum_quantity: i64 = 0;
+    let mut sum_revenue: f64 = 0.0;
+
+    for item in details.iter() {
+        // 修改点：所有带 format 的都加上 _with_format
+        let _ = worksheet.write_string_with_format(start_row, 0, &item.product_code, &center_format);
+        let _ = worksheet.write_string_with_format(start_row, 1, &item.product_name, &text_format);
+        let _ = worksheet.write_number_with_format(start_row, 2, item.initial_stock as f64, &center_format);
+        let _ = worksheet.write_number_with_format(start_row, 4, item.unit_price, &currency_format);
+        let _ = worksheet.write_number_with_format(start_row, 5, item.total_quantity as f64, &center_format);
+        let _ = worksheet.write_number_with_format(start_row, 6, item.total_revenue_per_item, &currency_format);
+
+        // 第三列空着，用于现场填写结束数量进行盘点
+        let _ = worksheet.write_blank(start_row, 3, &text_format);
+
+        sum_quantity += item.total_quantity;
+        sum_revenue += item.total_revenue_per_item;
+        start_row += 1;
+    }
+
+    // 6. 写入总计
+    let _ = worksheet.write_string_with_format(start_row, 0, "总计", &total_row_format);
+    
+    // 注意：write_blank 不需要 _with_format 就能应用背景色
+    let _ = worksheet.write_blank(start_row, 1, &total_row_format);
+    let _ = worksheet.write_blank(start_row, 2, &total_row_format);
+    let _ = worksheet.write_blank(start_row, 3, &total_row_format);
+    let _ = worksheet.write_blank(start_row, 4, &total_row_format);
+    
+    let _ = worksheet.write_number_with_format(start_row, 5, sum_quantity as f64, &total_row_format);
+    let _ = worksheet.write_number_with_format(start_row, 6, sum_revenue, &total_currency_format);
+
+    start_row += 1;
+    // 7. 写入备注和签名窗格
+    
+    // 空一行
+    start_row += 1;
+    
+    // 备注框样式
+    let note_format = Format::new()
+        .set_border(FormatBorder::Thin)
+        .set_align(FormatAlign::Center)
+        .set_align(FormatAlign::VerticalCenter);
+    
+    // 备注行 - 设置行高为 40 点
+    let _ = worksheet.set_row_height(start_row, 40.0);
+    let _ = worksheet.write_string_with_format(start_row, 0, "备注信息:", &note_format);
+    let _ = worksheet.merge_range(start_row, 1, start_row, 6, "", &note_format);
+    
+    start_row += 1;
+    
+    // 签名行 - 设置行高为 25 点
+    let _ = worksheet.set_row_height(start_row, 30.0);
+    let _ = worksheet.write_string_with_format(start_row, 0, "出摊人:", &note_format);
+    let _ = worksheet.merge_range(start_row, 1, start_row, 6, "", &note_format);
+
+    start_row += 1;
+    // 写一行用于说明
+    let instruction_format = Format::new()
+        .set_italic()
+        .set_align(FormatAlign::Left);
+    let instruction_text = "说明：请在“结束数量”栏填写展会结束时你清点出来的数量，和销售情况做对比，以盘点可能的货物丢失。";
+    let _ = worksheet.set_row_height(start_row, 30.0);
+    let _ = worksheet.merge_range(start_row, 0, start_row, 6, instruction_text, &instruction_format);
+
+    // 保存
+    match workbook.save(&temp_file) {
         Ok(_) => {
-            // 读取文件内容
             match fs::read(&temp_file) {
                 Ok(buf) => {
-                    // 删除临时文件
                     let _ = fs::remove_file(&temp_file);
-                    
-                    // 构建响应
                     let mut headers = HeaderMap::new();
                     headers.insert(
                         axum::http::header::CONTENT_TYPE,
-                        HeaderValue::from_static("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+                        HeaderValue::from_static(
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        ),
                     );
+                    let download_filename = format!("sales_report_event_{}.xlsx", event_id);
                     headers.insert(
                         axum::http::header::CONTENT_DISPOSITION,
-                        HeaderValue::from_str(&format!("attachment; filename=\"sales_report_event_{}.xlsx\"", event_id))
-                            .unwrap_or_else(|_| HeaderValue::from_static("attachment")),
+                        HeaderValue::from_str(&format!(
+                            "attachment; filename=\"{}\"",
+                            download_filename
+                        ))
+                        .unwrap_or_else(|_| HeaderValue::from_static("attachment")),
                     );
-                    
                     (headers, buf).into_response()
-                },
-                Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Failed to read generated excel file").into_response(),
+                }
+                Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Failed to read excel").into_response(),
             }
-        },
-        Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Failed to generate excel").into_response(),
+        }
+        Err(e) => {
+            eprintln!("Excel generation error: {}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "Failed to generate excel").into_response()
+        }
     }
 }
 
-// 权限辅助函数
 fn check_read_permission(claims: &Claims, event_id: i64) -> Result<(), (StatusCode, &'static str)> {
     if claims.role == "admin" {
         return Ok(());

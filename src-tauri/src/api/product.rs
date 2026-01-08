@@ -20,14 +20,23 @@ pub fn router() -> Router<AppState> {
     // 我们需要在 api/mod.rs 中把这个 router 挂载到根 /api 下，而不是 /api/products
     // 因为这里涉及两个不同的路径前缀：/events/... 和 /products/...
     Router::new()
-        .route("/events/:event_id/products", get(list_event_products).post(add_product_to_event))
-        .route("/products/:product_id", put(update_product).delete(delete_product))
+        .route(
+            "/events/:event_id/products",
+            get(list_event_products).post(add_product_to_event),
+        )
+        .route(
+            "/products/:product_id",
+            put(update_product).delete(delete_product),
+        )
 }
 
 // ==========================================
 // 辅助：权限检查
 // ==========================================
-fn check_write_permission(claims: &Claims, target_event_id: i64) -> Result<(), (StatusCode, &'static str)> {
+fn check_write_permission(
+    claims: &Claims,
+    target_event_id: i64,
+) -> Result<(), (StatusCode, &'static str)> {
     if claims.role == "admin" {
         return Ok(());
     }
@@ -54,9 +63,8 @@ async fn list_event_products(
     // 关键点：JOIN master_products 获取图片和分类
     let sql = r#"
         SELECT 
-            p.*, 
-            mp.image_url, 
-            mp.category 
+            p.id, p.event_id, p.master_product_id, p.product_code, p.name, p.price, 
+            p.initial_stock, p.current_stock, mp.image_url, mp.category
         FROM products p
         JOIN master_products mp ON p.master_product_id = mp.id
         WHERE p.event_id = ?
@@ -101,19 +109,30 @@ async fn add_product_to_event(
         .unwrap_or(None);
 
     if event_exists.is_none() {
-        return (StatusCode::NOT_FOUND, Json(json!({"error": "Event not found"}))).into_response();
+        return (
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": "Event not found"})),
+        )
+            .into_response();
     }
 
     // 2. 查找全局商品信息 (Master Product)
-    let master_prod: Option<MasterProduct> = query_as::<_, MasterProduct>("SELECT * FROM master_products WHERE product_code = ?")
-        .bind(&payload.product_code)
-        .fetch_optional(&state.db)
-        .await
-        .unwrap_or(None);
+    let master_prod: Option<MasterProduct> =
+        query_as::<_, MasterProduct>("SELECT * FROM master_products WHERE product_code = ?")
+            .bind(&payload.product_code)
+            .fetch_optional(&state.db)
+            .await
+            .unwrap_or(None);
 
     let master = match master_prod {
         Some(mp) => mp,
-        None => return (StatusCode::NOT_FOUND, Json(json!({"error": "Product code not found in master catalog"}))).into_response(),
+        None => {
+            return (
+                StatusCode::NOT_FOUND,
+                Json(json!({"error": "Product code not found in master catalog"})),
+            )
+                .into_response()
+        }
     };
 
     // 3. 确定价格 (如果 payload 没传，就用 default_price)
@@ -126,8 +145,7 @@ async fn add_product_to_event(
         INSERT INTO products 
         (event_id, master_product_id, product_code, name, price, initial_stock, current_stock)
         VALUES (?, ?, ?, ?, ?, ?, ?)
-        RETURNING id
-        "#
+        "#,
     )
     .bind(event_id)
     .bind(master.id)
@@ -136,26 +154,48 @@ async fn add_product_to_event(
     .bind(final_price)
     .bind(payload.initial_stock)
     .bind(payload.initial_stock) // 初始 current = initial
-    .fetch_one(&state.db)
+    .execute(&state.db)
     .await;
 
     match result {
-        Ok(row) => {
-            // 返回创建的对象 (为了前端方便，最好再查一次或者手动构造，这里简单返回 ID)
-            let new_id: i64 = row.get("id");
-            (StatusCode::CREATED, Json(json!({ 
-                "id": new_id, 
-                "product_code": master.product_code,
-                "name": master.name,
-                "current_stock": payload.initial_stock
-            }))).into_response()
-        },
+        Ok(_) => {
+            // 获取最后插入的行ID
+            let last_id: Option<(i64,)> = query_as("SELECT last_insert_rowid() as id")
+                .fetch_optional(&state.db)
+                .await
+                .unwrap_or(None);
+
+            if let Some((new_id,)) = last_id {
+                // 构建Product对象（直接使用已有的master信息）
+                let product = Product {
+                    id: new_id,
+                    event_id,
+                    master_product_id: master.id,
+                    product_code: master.product_code.clone(),
+                    name: master.name.clone(),
+                    price: final_price,
+                    initial_stock: payload.initial_stock,
+                    current_stock: payload.initial_stock,
+                    image_url: master.image_url.clone(),
+                    category: master.category.clone(),
+                };
+
+                (StatusCode::CREATED, Json(product)).into_response()
+            } else {
+                (StatusCode::INTERNAL_SERVER_ERROR, "Failed to get insert ID").into_response()
+            }
+        }
         Err(e) => {
             // 检查是否重复添加
-            if e.to_string().contains("UNIQUE constraint") { // 假设你在 db 建表时对 (event_id, product_code) 做了唯一索引
-                 (StatusCode::CONFLICT, Json(json!({"error": "Product already in this event"}))).into_response()
+            if e.to_string().contains("UNIQUE constraint") {
+                (
+                    StatusCode::CONFLICT,
+                    Json(json!({"error": "Product already in this event"})),
+                )
+                    .into_response()
             } else {
-                 (StatusCode::INTERNAL_SERVER_ERROR, "Database Error").into_response()
+                eprintln!("Insert product error: {:?}", e);
+                (StatusCode::INTERNAL_SERVER_ERROR, "Database Error").into_response()
             }
         }
     }
@@ -210,7 +250,7 @@ async fn update_product(
         let sold = product.initial_stock - product.current_stock;
         new_initial = init;
         new_current = init - sold;
-        
+
         // [修复] 如果 sold > new_init，意味着试图将初始库存设置为小于已售数量
         // 这是非法的，应该返回错误而不是允许负数库存
         if new_current < 0 {
@@ -224,24 +264,39 @@ async fn update_product(
     }
 
     // 4. 更新数据库
-    let _ = query("UPDATE products SET price = ?, initial_stock = ?, current_stock = ? WHERE id = ?")
-        .bind(new_price)
-        .bind(new_initial)
-        .bind(new_current)
-        .bind(product_id)
-        .execute(&state.db)
-        .await;
+    let result =
+        query("UPDATE products SET price = ?, initial_stock = ?, current_stock = ? WHERE id = ?")
+            .bind(new_price)
+            .bind(new_initial)
+            .bind(new_current)
+            .bind(product_id)
+            .execute(&state.db)
+            .await;
 
-    // 返回更新后的对象
-    let updated_product = query_as::<_, Product>(
-        "SELECT p.*, mp.image_url, mp.category FROM products p JOIN master_products mp ON p.master_product_id = mp.id WHERE p.id = ?"
-    )
-    .bind(product_id)
-    .fetch_one(&state.db)
-    .await
-    .unwrap();
+    match result {
+        Ok(_) => {
+            // 返回更新后的对象（使用内连接，master_product必定存在）
+            let updated_product = query_as::<_, Product>(
+                r#"
+                SELECT p.id, p.event_id, p.master_product_id, p.product_code, p.name, p.price, 
+                       p.initial_stock, p.current_stock, mp.image_url, mp.category 
+                FROM products p 
+                JOIN master_products mp ON p.master_product_id = mp.id 
+                WHERE p.id = ?
+                "#,
+            )
+            .bind(product_id)
+            .fetch_one(&state.db)
+            .await
+            .unwrap();
 
-    (StatusCode::OK, Json(updated_product)).into_response()
+            (StatusCode::OK, Json(updated_product)).into_response()
+        }
+        Err(e) => {
+            eprintln!("Update product error: {:?}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "Database Error").into_response()
+        }
+    }
 }
 
 // ==========================================
@@ -275,5 +330,9 @@ async fn delete_product(
         .execute(&state.db)
         .await;
 
-    (StatusCode::OK, Json(json!({"message": "Product removed from event"}))).into_response()
+    (
+        StatusCode::OK,
+        Json(json!({"message": "Product removed from event"})),
+    )
+        .into_response()
 }

@@ -28,13 +28,20 @@ pub async fn start_server(state: AppState, port: u16) {
             async move {
                 let path = uri.path();
 
+                if path.starts_with("/api/") {
+                return (
+                        StatusCode::NOT_FOUND, 
+                        axum::Json(serde_json::json!({"error": "API Route Not Found"}))
+                    ).into_response();
+                }
+
                 // ---------------------------------------------------------
-                // 1. 处理静态资源图片请求
+                // 1. 处理静态资源图片请求 (通过 /uploads/ 路由访问)
                 // ---------------------------------------------------------
-                if path.starts_with("/static/uploads/") {
-                    // 关键步骤：去掉 URL 前缀 "/static/uploads/"
+                if path.starts_with("/uploads/") {
+                    // 关键步骤：去掉 URL 前缀 "/uploads/"
                     // 变成 "products/xxx.jpg"
-                    let relative_path = path.trim_start_matches("/static/uploads/");
+                    let relative_path = path.trim_start_matches("/uploads/");
 
                     // 解码 URL (处理文件名中的空格、中文等)
                     // 需要在 Cargo.toml 添加 urlencoding 依赖，或者暂时忽略
@@ -51,15 +58,15 @@ pub async fn start_server(state: AppState, port: u16) {
                         match tokio::fs::read(&file_path).await {
                             Ok(bytes) => {
                                 // 自动猜测 MIME 类型 (image/jpeg, image/png)
-                                let mime = mime_guess::from_path(&file_path).first_or_octet_stream();
-                                return (
-                                    [(header::CONTENT_TYPE, mime.as_ref())],
-                                    bytes
-                                ).into_response();
-                            },
+                                let mime =
+                                    mime_guess::from_path(&file_path).first_or_octet_stream();
+                                return ([(header::CONTENT_TYPE, mime.as_ref())], bytes)
+                                    .into_response();
+                            }
                             Err(e) => {
                                 println!("[Static Error] Read failed: {}", e);
-                                return (StatusCode::INTERNAL_SERVER_ERROR, "File Read Error").into_response();
+                                return (StatusCode::INTERNAL_SERVER_ERROR, "File Read Error")
+                                    .into_response();
                             }
                         }
                     } else {
@@ -79,8 +86,12 @@ pub async fn start_server(state: AppState, port: u16) {
                 CorsLayer::new()
                     .allow_origin(AllowOrigin::mirror_request())
                     .allow_methods([
-                        Method::GET, Method::POST, Method::PUT, 
-                        Method::DELETE, Method::PATCH, Method::OPTIONS
+                        Method::GET,
+                        Method::POST,
+                        Method::PUT,
+                        Method::DELETE,
+                        Method::PATCH,
+                        Method::OPTIONS,
                     ])
                     .allow_headers(AllowHeaders::list(vec![
                         header::AUTHORIZATION,

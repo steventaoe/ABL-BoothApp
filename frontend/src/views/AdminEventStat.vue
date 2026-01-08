@@ -4,16 +4,14 @@
       <h1>{{ pageTitle }}</h1>
       <n-button
         v-if="statStore.stats && statStore.stats.summary.length > 0"
-        tag="a"
-        :href="statStore.downloadUrl"
         class="download-btn"
         type="primary"
         tertiary
         size="small"
-        download
+        @click="downloadReport"
       >
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-        导出为CSV文件报告
+        下载 Excel 报告
       </n-button>
     </header>
 
@@ -117,6 +115,9 @@ import SalesLineChart from '@/components/stats/SalesLineChart.vue';
 import StatFilters from '@/components/stats/StatFilters.vue';
 import { NButton, NSpin, NAlert, NCard, NTable } from 'naive-ui';
 
+import { save } from '@tauri-apps/plugin-dialog';
+import { writeFile } from '@tauri-apps/plugin-fs';
+
 const route = useRoute();
 const statStore = useEventStatStore();
 const selectedProduct = ref('');
@@ -167,10 +168,91 @@ async function applyFilters() {
     intervalMinutes: intervalMinutes.value,
   });
 }
+async function downloadReport() {
+  if (!statStore.stats || !statStore.stats.summary?.length) return;
+
+  try {
+    console.log('开始请求 Excel 报告:', statStore.downloadUrl);
+    const response = await fetch(statStore.downloadUrl, { credentials: 'include' });
+    if (!response.ok) {
+      throw new Error(`下载失败: ${response.status}`);
+    }
+
+    // 1. 获取文件名
+    const safeName = (statStore.stats.event_name || 'sales_report').replace(/[\\/:*?"<>|]/g, '_');
+    const fileName = `sales_report_${safeName}.xlsx`;
+
+    // 2. 获取二进制数据
+    const blob = await response.blob();
+
+    console.log('Excel 报告下载完成，大小为', blob.size, '字节，准备保存');
+    
+    // 3. 判断环境：是 Tauri APP 还是 普通浏览器？
+    const isTauri = window.__TAURI_INTERNALS__ !== undefined;
+
+    if (isTauri) {
+      // ============================================================
+      // 场景 A: Tauri 主机环境 (使用原生系统弹窗保存)
+      // ============================================================
+      try {
+        // 1. 弹出"保存文件"对话框，让用户选位置
+        const filePath = await save({
+          defaultPath: fileName,
+          filters: [{
+            name: 'Excel Files',
+            extensions: ['xlsx']
+          }]
+        });
+
+        // 用户如果取消了，filePath 为 null
+        if (!filePath) return;
+
+        // 2. 将 Blob 转为 Uint8Array (Rust 写入文件需要字节数组)
+        const arrayBuffer = await blob.arrayBuffer();
+        const uint8Array = new Uint8Array(arrayBuffer);
+
+        // 3. 写入硬盘
+        await writeFile(filePath, uint8Array);
+        
+        // (可选) 提示成功
+        // window.$message.success('导出成功'); 
+        alert('导出成功'); // 或者使用 Naive UI 的 message
+        
+      } catch (err) {
+        console.error('Tauri 保存文件失败:', err);
+        alert('保存失败，请检查文件权限');
+      }
+
+    } else {
+      // ============================================================
+      // 场景 B: 手机/电脑浏览器 (使用 Web 标准下载)
+      // ============================================================
+      console.log('检测到浏览器环境，使用 Blob 下载');
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = fileName;
+
+      document.body.appendChild(a);
+      a.click();
+      
+      // 延时清理，兼容移动端浏览器
+      setTimeout(() => {
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      }, 100);
+    }
+
+  } catch (e) {
+    console.error('下载 Excel 报告失败:', e);
+  }
+}
 
 onMounted(() => {
   const eventId = route.params.id;
   if (eventId) statStore.setActiveEvent(eventId, { productCode: selectedProduct.value, startDate: startDate.value, endDate: endDate.value, intervalMinutes: intervalMinutes.value });
+  console.log(statStore.stats)
 });
 
 watch(() => route.params.id, (newEventId) => {

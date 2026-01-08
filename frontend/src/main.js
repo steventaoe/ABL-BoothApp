@@ -12,10 +12,9 @@ import './assets/main.css'
 // 4. 创建 Vue 应用实例
 const app = createApp(App)
 
-// 5. 【关键步骤】在 use(router) 之前，先 use(createPinia())
-//    createPinia() 会返回一个 pinia 实例
+// 5. 使用 Pinia 和路由
 app.use(createPinia()) 
 app.use(router)
 
-// 6. 最后挂载应用
+// 6. 挂载应用
 app.mount('#app')

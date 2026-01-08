@@ -1,15 +1,15 @@
-use axum::Router;
 use crate::state::AppState;
+use axum::Router;
 
-pub mod guard;
+mod admin;
 mod auth;
 mod event;
-mod master_product;
-mod product;
-mod order;
-mod stats;
-mod admin;
+pub mod guard;
 mod info;
+mod master_product;
+mod order;
+mod product;
+mod stats;
 
 pub fn router() -> Router<AppState> {
     Router::new()
@@ -18,8 +18,7 @@ pub fn router() -> Router<AppState> {
         .nest("/events", stats::router()) // 包含 /events/:id/stats 等
         .nest("/master-products", master_product::router())
         .nest("/admin", admin::router()) // /api/admin/...
-        .merge(info::router())           // /api/server-info
-        .merge(product::router())        // /api/events/:id/products
-        .merge(order::router())          // /api/events/:id/orders
+        .merge(info::router()) // /api/server-info
+        .merge(product::router()) // /api/events/:id/products
+        .merge(order::router()) // /api/events/:id/orders
 }
-

@@ -2,9 +2,9 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::Json;
 use bcrypt::{hash, verify, DEFAULT_COST};
-use jsonwebtoken::{encode, Header, EncodingKey};
+use chrono::{Duration, Utc};
+use jsonwebtoken::{encode, EncodingKey, Header};
 use serde::{Deserialize, Serialize};
-use chrono::{Utc, Duration};
 use serde_json::json;
 
 // 自定义错误类型，用于统一返回 HTTP 错误
@@ -12,7 +12,7 @@ pub enum AuthError {
     WrongCredentials,
     TokenCreation,
     InvalidToken,
-    Forbidden,  // [新增] 用于权限不足 (403)
+    Forbidden, // [新增] 用于权限不足 (403)
 }
 
 // 实现 IntoResponse，这样 Handler 可以直接返回 Result<T, AuthError>
@@ -20,9 +20,11 @@ impl IntoResponse for AuthError {
     fn into_response(self) -> Response {
         let (status, error_message) = match self {
             AuthError::WrongCredentials => (StatusCode::UNAUTHORIZED, "Wrong credentials"),
-            AuthError::TokenCreation => (StatusCode::INTERNAL_SERVER_ERROR, "Token creation failed"),
+            AuthError::TokenCreation => {
+                (StatusCode::INTERNAL_SERVER_ERROR, "Token creation failed")
+            }
             AuthError::InvalidToken => (StatusCode::UNAUTHORIZED, "Invalid token"),
-            AuthError::Forbidden => (StatusCode::FORBIDDEN, "Insufficient permissions"),  // [新增] 403
+            AuthError::Forbidden => (StatusCode::FORBIDDEN, "Insufficient permissions"), // [新增] 403
         };
         let body = Json(json!({ "error": error_message }));
         (status, body).into_response()
@@ -32,11 +34,11 @@ impl IntoResponse for AuthError {
 // JWT 的载荷 (Payload) 结构，对应 Flask 的 Claims
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
-    pub sub: String,       // 用户标识 (admin 或 vendor)
-    pub role: String,      // "admin" | "vendor"
-    pub access: String,    // "all" | "event"
-    pub event_id: Option<i64>, 
-    pub exp: usize,        // 过期时间戳
+    pub sub: String,    // 用户标识 (admin 或 vendor)
+    pub role: String,   // "admin" | "vendor"
+    pub access: String, // "all" | "event"
+    pub event_id: Option<i64>,
+    pub exp: usize, // 过期时间戳
 }
 
 // 1. 密码哈希
@@ -50,7 +52,12 @@ pub fn verify_password(password: &str, hash: &str) -> bool {
 }
 
 // 3. 生成 JWT
-pub fn create_jwt(role: &str, access: &str, event_id: Option<i64>, secret: &str) -> Result<String, AuthError> {
+pub fn create_jwt(
+    role: &str,
+    access: &str,
+    event_id: Option<i64>,
+    secret: &str,
+) -> Result<String, AuthError> {
     // 设置过期时间 (例如 24 小时)
     let expiration = Utc::now()
         .checked_add_signed(Duration::hours(24))

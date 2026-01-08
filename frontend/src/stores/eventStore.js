@@ -13,9 +13,15 @@ export const useEventStore = defineStore('event', () => {
     error.value = null;
     try {
       const response = await api.get('/events');
-      events.value = response.data;
+      // 防御性检查：确保响应数据是数组
+      events.value = Array.isArray(response.data) ? response.data : [];
+      if (!Array.isArray(response.data)) {
+        console.warn('⚠️ API 返回的数据不是数组，已转换为空数组', response.data);
+        error.value = '数据格式错误，请稍后重试。';
+      }
     } catch (err) {
       error.value = '无法加载展会列表，请检查后端服务是否开启。';
+      events.value = []; // 错误时也要确保是数组
       console.error(err);
     } finally {
       isLoading.value = false;
@@ -38,20 +44,15 @@ export const useEventStore = defineStore('event', () => {
   async function updateEventStatus(eventId, newStatus) {
     try {
       console.log('尝试更新展会状态', eventId, newStatus);
-      // 调用后端的 PUT /api/events/<event_id>/status 接口
       const response = await api.put(`/events/${eventId}/status`, { status: newStatus });
       
-      // 更新成功后，为了避免重新请求整个列表，我们直接在前端更新状态
-      // 找到本地 events 数组中对应的展会
       const index = events.value.findIndex(e => e.id === eventId);
       if (index !== -1) {
-        // 直接修改该展会对象的状态，Vue 的响应式系统会自动更新 UI
         events.value[index].status = response.data.status;
       }
       return response.data;
     } catch (err) {
       console.error(err);
-      // 抛出错误，让组件可以捕获并通知用户更新失败
       throw new Error(err.response?.data?.error || '更新状态失败，请重试。');
     }
   }

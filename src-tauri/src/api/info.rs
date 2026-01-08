@@ -1,8 +1,8 @@
 // src/api/info.rs
 
-use axum::{Json, Router, routing::get};
-use serde_json::{json, Value};
 use crate::{state::AppState, utils::ip::get_lan_ip};
+use axum::{routing::get, Json, Router};
+use serde_json::{json, Value};
 
 pub fn router() -> Router<AppState> {
     Router::new().route("/server-info", get(server_info_handler))
@@ -11,10 +11,10 @@ pub fn router() -> Router<AppState> {
 async fn server_info_handler() -> Json<Value> {
     // 1. 获取动态的局域网 IP
     let ip = get_lan_ip();
-    
+
     // 2. 端口配置 (这里硬编码了 5000，建议提取到常量或配置中)
     let port = 5000;
-    
+
     // 3. 拼接 Base URL
     let base_url = format!("http://{}:{}", ip, port);
 

@@ -1,23 +1,41 @@
 import axios from 'axios';
 import router from '@/router';
 
-// 根据环境配置API基础路径
-export const getApiBaseUrl = () => {
-  // 开发环境：使用相对路径，通过Vite代理转发
-  if (import.meta.env.DEV) {
-    return '/api';
-  }
-  
-  // 生产环境：可以通过环境变量配置，如果没有则使用默认值
-  // 支持通过 VITE_API_BASE_URL 环境变量自定义
-  return import.meta.env.VITE_API_BASE_URL || '/api';
-};
+// ============================================================
+// 1. 动态计算 BaseURL (核心修复)
+// ============================================================
+
+// 检测是否在 Tauri 容器内运行
+const isTauri = window.__TAURI_INTERNALS__ !== undefined;
+// 你的后端端口
+const API_PORT = 5000;
+
+let baseURL = '';
+
+if (import.meta.env.DEV) {
+  // A. 开发环境：走 Vite 代理 (vite.config.ts)
+  baseURL = '/api';
+} else if (isTauri) {
+  // B. Tauri 生产环境：强制指向本地后端
+  // 必须写完整 URL，否则 Tauri 可能会在 tauri://localhost 下寻找 /api
+  baseURL = `http://localhost:${API_PORT}/api`;
+} else {
+  // C. 手机/局域网浏览器环境：使用相对路径
+  // 浏览器会自动拼接当前 IP (例如 http://192.168.1.5:5000/api)
+  baseURL = '/api';
+}
+
+console.log(`[Config] Axios BaseURL set to: ${baseURL}`);
 
 const apiClient = axios.create({
-  baseURL: getApiBaseUrl(),
-  // 确保在开发代理或跨子域情况下也携带 Cookie（用于后端 HttpOnly JWT）
-  withCredentials: true,
+  baseURL: baseURL,
+  withCredentials: true, // 确保 Cookie 跨域传输
+  timeout: 15000, // 建议设置超时，防止网络卡死
 });
+
+// ============================================================
+// 2. 拦截器保持不变 (写得很好)
+// ============================================================
 
 // 添加请求拦截器，用于调试
 apiClient.interceptors.request.use(
@@ -49,15 +67,23 @@ apiClient.interceptors.response.use(
     return response;
   },
   (error) => {
+    const url = error.config?.url || 'unknown';
+    const status = error.response?.status || 'network_error';
+    
     if (import.meta.env.DEV) {
-      console.error(`❌ API错误: ${error.config?.method?.toUpperCase()} ${error.config?.url}`, error.response?.status, error.message);
+      console.error(`❌ API错误: ${url}`, status, error.message);
     }
 
-    if (error.response && [401, 403].includes(error.response.status)) {
-      // 清理本地登录状态并跳转到登录页
-      sessionStorage.removeItem('user');
-      const target = error.response.status === 401 ? '/login/admin' : router.currentRoute.value.meta?.role === 'vendor' ? '/login/vendor' : '/login/admin';
-      router.push(target);
+    if (error.response && [401, 403].includes(status)) {
+      // 防止重复跳转（可选优化）
+      const currentPath = router.currentRoute.value.path;
+      if (!currentPath.includes('/login')) {
+        // 清理本地登录状态并跳转到登录页
+        sessionStorage.removeItem('user');
+        const role = router.currentRoute.value.meta?.role;
+        const target = role === 'vendor' ? '/login/vendor' : '/login/admin';
+        router.push(target);
+      }
     }
     return Promise.reject(error);
   }

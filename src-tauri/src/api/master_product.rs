@@ -77,7 +77,8 @@ async fn create_product(
                 Ok(path) => image_path = Some(path),
                 Err(e) => {
                     eprintln!("Upload error: {}", e);
-                    return (StatusCode::INTERNAL_SERVER_ERROR, "File upload failed").into_response();
+                    return (StatusCode::INTERNAL_SERVER_ERROR, "File upload failed")
+                        .into_response();
                 }
             }
         } else {
@@ -97,16 +98,20 @@ async fn create_product(
 
     // 必填项检查
     if product_code.is_empty() || name.is_empty() {
-        return (StatusCode::BAD_REQUEST, Json(json!({"error": "Code and Name are required"}))).into_response();
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error": "Code and Name are required"})),
+        )
+            .into_response();
     }
 
-    // 执行插入
-    let result = query(
+    // [修复] 使用 INSERT ... RETURNING * 原子地获取插入后的完整数据
+    let result = query_as::<_, MasterProduct>(
         r#"
         INSERT INTO master_products (product_code, name, default_price, category, image_url)
         VALUES (?, ?, ?, ?, ?)
-        RETURNING id
-        "#
+        RETURNING *
+        "#,
     )
     .bind(product_code)
     .bind(name)
@@ -117,17 +122,16 @@ async fn create_product(
     .await;
 
     match result {
-        Ok(row) => {
-            use sqlx::Row;
-            let id: i64 = row.try_get("id").unwrap_or(0);
-            (StatusCode::CREATED, Json(json!({ "id": id, "message": "Product created" }))).into_response()
-        }
+        Ok(product) => (StatusCode::CREATED, Json(product)).into_response(),
         Err(e) => {
-            // [错误处理] 检查是否是唯一性约束冲突 (SQLite error code 2067 or 1555)
-            // SQLx 的错误处理比较底层，这里简单判断一下
+            // [错误处理] 检查是否是唯一性约束冲突
             let error_msg = e.to_string();
             if error_msg.contains("UNIQUE constraint failed") {
-                (StatusCode::CONFLICT, Json(json!({"error": "Product code already exists"}))).into_response()
+                (
+                    StatusCode::CONFLICT,
+                    Json(json!({"error": "Product code already exists"})),
+                )
+                    .into_response()
             } else {
                 eprintln!("DB Error: {:?}", e);
                 (StatusCode::INTERNAL_SERVER_ERROR, "Database Error").into_response()
@@ -187,9 +191,9 @@ async fn update_product(
                 "name" => name = value,
                 "default_price" => {
                     if !value.is_empty() {
-                         default_price = value.parse().unwrap_or(default_price);
+                        default_price = value.parse().unwrap_or(default_price);
                     }
-                },
+                }
                 "category" => category = if value.is_empty() { None } else { Some(value) },
                 "remove_image" => {
                     if value == "true" {
@@ -210,12 +214,13 @@ async fn update_product(
     }
 
     // 5. 数据库更新
-    let result = query(
+    let result = query_as::<_, MasterProduct>(
         r#"
         UPDATE master_products 
         SET product_code = ?, name = ?, default_price = ?, category = ?, image_url = ?
         WHERE id = ?
-        "#
+        RETURNING *
+        "#,
     )
     .bind(product_code)
     .bind(name)
@@ -223,19 +228,23 @@ async fn update_product(
     .bind(category)
     .bind(image_path)
     .bind(id)
-    .execute(&state.db)
+    .fetch_one(&state.db)
     .await;
 
     match result {
-        Ok(_) => (StatusCode::OK, Json(json!({"message": "Product updated"}))).into_response(),
+        Ok(product) => (StatusCode::OK, Json(product)).into_response(),
         Err(e) => {
-             // 同样也要检查唯一性冲突（如果修改了 product_code）
-             let error_msg = e.to_string();
-             if error_msg.contains("UNIQUE constraint failed") {
-                 (StatusCode::CONFLICT, Json(json!({"error": "Product code already exists"}))).into_response()
-             } else {
-                 (StatusCode::INTERNAL_SERVER_ERROR, "Database Error").into_response()
-             }
+            // 同样也要检查唯一性冲突（如果修改了 product_code）
+            let error_msg = e.to_string();
+            if error_msg.contains("UNIQUE constraint failed") {
+                (
+                    StatusCode::CONFLICT,
+                    Json(json!({"error": "Product code already exists"})),
+                )
+                    .into_response()
+            } else {
+                (StatusCode::INTERNAL_SERVER_ERROR, "Database Error").into_response()
+            }
         }
     }
 }
@@ -254,14 +263,21 @@ async fn update_status(
     Path(id): Path<i64>,
     Json(payload): Json<UpdateStatusRequest>,
 ) -> impl IntoResponse {
-    let result = query("UPDATE master_products SET is_active = ? WHERE id = ?")
-        .bind(payload.is_active)
-        .bind(id)
-        .execute(&state.db)
-        .await;
+    let result = query_as::<_, MasterProduct>(
+        r#"
+        UPDATE master_products 
+        SET is_active = ? 
+        WHERE id = ?
+        RETURNING *
+        "#,
+    )
+    .bind(payload.is_active)
+    .bind(id)
+    .fetch_one(&state.db)
+    .await;
 
     match result {
-        Ok(_) => (StatusCode::OK, Json(json!({"message": "Status updated"}))).into_response(),
+        Ok(product) => (StatusCode::OK, Json(product)).into_response(),
         Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Database Error").into_response(),
     }
 }

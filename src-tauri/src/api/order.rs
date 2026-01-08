@@ -10,12 +10,7 @@ use serde_json::json;
 use sqlx::{query, query_as};
 use std::collections::HashMap;
 
-
-use crate::{
-    db::models::Order,
-    state::AppState,
-    utils::security::Claims,
-};
+use crate::{db::models::Order, state::AppState, utils::security::Claims};
 
 pub fn router() -> Router<AppState> {
     Router::new()
@@ -24,7 +19,10 @@ pub fn router() -> Router<AppState> {
         // 管理员/摊主：查看订单列表
         .route("/events/:event_id/orders", get(list_orders))
         // 管理员/摊主：更新订单状态
-        .route("/events/:event_id/orders/:order_id/status", put(update_order_status))
+        .route(
+            "/events/:event_id/orders/:order_id/status",
+            put(update_order_status),
+        )
 }
 
 // ==========================================
@@ -79,12 +77,22 @@ async fn create_order(
     Json(payload): Json<CreateOrderRequest>,
 ) -> impl IntoResponse {
     if payload.items.is_empty() {
-        return (StatusCode::BAD_REQUEST, Json(json!({"error": "Order must have items"}))).into_response();
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error": "Order must have items"})),
+        )
+            .into_response();
     }
 
     let mut tx = match state.db.begin().await {
         Ok(tx) => tx,
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": e.to_string()})),
+            )
+                .into_response()
+        }
     };
 
     let mut total_amount = 0.0;
@@ -108,7 +116,7 @@ async fn create_order(
             FROM products p
             JOIN master_products mp ON p.master_product_id = mp.id
             WHERE p.id = ? AND p.event_id = ?
-            "#
+            "#,
         )
         .bind(item_req.product_id)
         .bind(event_id)
@@ -118,9 +126,13 @@ async fn create_order(
         match product_opt {
             Ok(Some(prod)) => {
                 if prod.current_stock < item_req.quantity {
-                    return (StatusCode::NOT_ACCEPTABLE, Json(json!({
-                        "error": format!("Insufficient stock for product: {}", prod.name)
-                    }))).into_response();
+                    return (
+                        StatusCode::NOT_ACCEPTABLE,
+                        Json(json!({
+                            "error": format!("Insufficient stock for product: {}", prod.name)
+                        })),
+                    )
+                        .into_response();
                 }
                 // 扣减库存
                 let new_stock = prod.current_stock - item_req.quantity;
@@ -128,37 +140,58 @@ async fn create_order(
                     .bind(new_stock)
                     .bind(prod.id)
                     .execute(&mut *tx)
-                    .await 
+                    .await
                 {
-                    return (StatusCode::INTERNAL_SERVER_ERROR, "Failed to update stock").into_response();
+                    return (StatusCode::INTERNAL_SERVER_ERROR, "Failed to update stock")
+                        .into_response();
                 }
 
                 total_amount += prod.price * (item_req.quantity as f64);
 
                 items_to_insert.push((
-                    prod.id, 
-                    prod.name, 
-                    prod.price, 
+                    prod.id,
+                    prod.name,
+                    prod.price,
                     item_req.quantity,
-                    prod.image_url // 这是一个 Option<String> (相对路径)
+                    prod.image_url, // 这是一个 Option<String> (相对路径)
                 ));
-            },
-            Ok(None) => return (StatusCode::NOT_FOUND, Json(json!({"error": "Product not found"}))).into_response(),
-            Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+            }
+            Ok(None) => {
+                return (
+                    StatusCode::NOT_FOUND,
+                    Json(json!({"error": "Product not found"})),
+                )
+                    .into_response()
+            }
+            Err(e) => {
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({"error": e.to_string()})),
+                )
+                    .into_response()
+            }
         }
     }
 
-    let order_id = match sqlx::query("INSERT INTO orders (event_id, total_amount, status) VALUES (?, ?, 'pending') RETURNING id")
-        .bind(event_id)
-        .bind(total_amount)
-        .fetch_one(&mut *tx)
-        .await
+    let order_id = match sqlx::query(
+        "INSERT INTO orders (event_id, total_amount, status) VALUES (?, ?, 'pending') RETURNING id",
+    )
+    .bind(event_id)
+    .bind(total_amount)
+    .fetch_one(&mut *tx)
+    .await
     {
         Ok(rec) => {
             use sqlx::Row;
             rec.get::<i64, _>("id")
-        },
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+        }
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": e.to_string()})),
+            )
+                .into_response()
+        }
     };
 
     let mut response_items = Vec::new();
@@ -178,7 +211,8 @@ async fn create_order(
                 use sqlx::Row;
                 let item_id: i64 = rec.get("id");
                 // [修复点 2] 处理图片 URL，拼接 /static/uploads/ 前缀
-                let processed_image_url = raw_img_path.map(|path| format!("/static/uploads/{}", path));
+                let processed_image_url =
+                    raw_img_path.map(|path| format!("/static/uploads/{}", path));
 
                 response_items.push(OrderItemResponse {
                     id: item_id,
@@ -188,13 +222,23 @@ async fn create_order(
                     product_price: price,
                     product_image_url: processed_image_url, // 返回处理后的 URL
                 });
-            },
-            Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e.to_string()}))).into_response(),
+            }
+            Err(e) => {
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({"error": e.to_string()})),
+                )
+                    .into_response()
+            }
         }
     }
 
     if let Err(_e) = tx.commit().await {
-        return (StatusCode::INTERNAL_SERVER_ERROR, "Transaction Commit Failed").into_response();
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Transaction Commit Failed",
+        )
+            .into_response();
     }
 
     // 构造最终响应
@@ -231,7 +275,7 @@ async fn list_orders(
     if let Some(status) = &params.status {
         sql.push_str(" AND status = '");
         sql.push_str(status); // 注意：生产环境应使用 bind 防止注入，这里为了简单拼接演示逻辑，只要 status 是枚举值就安全
-        sql.push_str("'"); 
+        sql.push_str("'");
     }
     sql.push_str(" ORDER BY id DESC");
 
@@ -241,11 +285,15 @@ async fn list_orders(
         query_as("SELECT * FROM orders WHERE event_id = ? AND status = ? ORDER BY id DESC")
             .bind(event_id)
             .bind(s)
-            .fetch_all(&state.db).await.unwrap_or_default()
+            .fetch_all(&state.db)
+            .await
+            .unwrap_or_default()
     } else {
         query_as("SELECT * FROM orders WHERE event_id = ? ORDER BY id DESC")
             .bind(event_id)
-            .fetch_all(&state.db).await.unwrap_or_default()
+            .fetch_all(&state.db)
+            .await
+            .unwrap_or_default()
     };
 
     if orders.is_empty() {
@@ -264,7 +312,7 @@ async fn list_orders(
         JOIN products p ON oi.product_id = p.id
         JOIN master_products mp ON p.master_product_id = mp.id
         WHERE oi.order_id IN ({})
-        "#, 
+        "#,
         placeholders
     );
 
@@ -276,7 +324,7 @@ async fn list_orders(
     // 由于 OrderItem 结构体没有 product_image_url，我们需要一个新的临时结构体或者使用 sqlx::Row
     // 这里我们直接用 Row 手动映射
     let items_rows = query_builder.fetch_all(&state.db).await.unwrap_or_default();
-    
+
     // 3. 内存分组
     let mut items_map: HashMap<i64, Vec<OrderItemResponse>> = HashMap::new();
 
@@ -295,13 +343,16 @@ async fn list_orders(
     }
 
     // 4. 组装最终结果
-    let result: Vec<OrderResponse> = orders.into_iter().map(|o| {
-        let oid = o.id;
-        OrderResponse {
-            order: o,
-            items: items_map.remove(&oid).unwrap_or_default(),
-        }
-    }).collect();
+    let result: Vec<OrderResponse> = orders
+        .into_iter()
+        .map(|o| {
+            let oid = o.id;
+            OrderResponse {
+                order: o,
+                items: items_map.remove(&oid).unwrap_or_default(),
+            }
+        })
+        .collect();
 
     Json(result).into_response()
 }
@@ -323,39 +374,63 @@ async fn update_order_status(
     // 执行更新
     // 思考：如果状态变为 cancelled，是否需要恢复库存？
     // 通常漫展现场，取消订单意味着东西没卖出去，应该恢复。这里简单实现恢复逻辑。
-    
+
     if payload.status == "cancelled" {
         // 开启事务处理取消逻辑
         let mut tx = state.db.begin().await.unwrap();
-        
+
         // 1. 检查订单当前状态，防止重复取消导致重复加库存
-        let current_status: Option<String> = sqlx::query_scalar("SELECT status FROM orders WHERE id = ?")
-            .bind(order_id)
-            .fetch_optional(&mut *tx).await.unwrap_or(None);
-            
+        let current_status: Option<String> =
+            sqlx::query_scalar("SELECT status FROM orders WHERE id = ?")
+                .bind(order_id)
+                .fetch_optional(&mut *tx)
+                .await
+                .unwrap_or(None);
+
         if let Some(s) = current_status {
             match s.as_str() {
                 "cancelled" => {
-                    return (StatusCode::OK, Json(json!({"message": "Already cancelled"}))).into_response();
-                },
+                    // 已取消过，直接返回当前订单数据
+                    let order = query_as::<_, Order>("SELECT * FROM orders WHERE id = ?")
+                        .bind(order_id)
+                        .fetch_optional(&state.db)
+                        .await
+                        .unwrap_or(None);
+
+                    return if let Some(o) = order {
+                        (StatusCode::OK, Json(o)).into_response()
+                    } else {
+                        (StatusCode::NOT_FOUND, "Order not found").into_response()
+                    };
+                }
                 "pending" | "completed" => {
                     // [修复] 允许 pending 和 completed 订单都可以取消并恢复库存 ✓
                     // 这支持摊主误操作修复的场景
                     // pending 订单扣减库存是为了防止有订单但没有货的情况出现
-                    
+
                     // 2. 查出该订单所有商品和数量
                     #[derive(sqlx::FromRow)]
-                    struct ItemQty { product_id: i64, quantity: i64 }
-                    let items = sqlx::query_as::<_, ItemQty>("SELECT product_id, quantity FROM order_items WHERE order_id = ?")
-                        .bind(order_id)
-                        .fetch_all(&mut *tx).await.unwrap_or_default();
+                    struct ItemQty {
+                        product_id: i64,
+                        quantity: i64,
+                    }
+                    let items = sqlx::query_as::<_, ItemQty>(
+                        "SELECT product_id, quantity FROM order_items WHERE order_id = ?",
+                    )
+                    .bind(order_id)
+                    .fetch_all(&mut *tx)
+                    .await
+                    .unwrap_or_default();
 
                     // 3. 归还库存
                     for item in items {
-                        let _ = sqlx::query("UPDATE products SET current_stock = current_stock + ? WHERE id = ?")
-                            .bind(item.quantity)
-                            .bind(item.product_id)
-                            .execute(&mut *tx).await;
+                        let _ = sqlx::query(
+                            "UPDATE products SET current_stock = current_stock + ? WHERE id = ?",
+                        )
+                        .bind(item.quantity)
+                        .bind(item.product_id)
+                        .execute(&mut *tx)
+                        .await;
                     }
                 }
                 _ => {}
@@ -365,10 +440,10 @@ async fn update_order_status(
         // 4. 更新状态
         let _ = sqlx::query("UPDATE orders SET status = 'cancelled' WHERE id = ?")
             .bind(order_id)
-            .execute(&mut *tx).await;
-            
+            .execute(&mut *tx)
+            .await;
+
         tx.commit().await.unwrap();
-        
     } else {
         // 普通状态更新 (pending -> completed)
         let result = query("UPDATE orders SET status = ? WHERE id = ? AND event_id = ?")
@@ -379,30 +454,39 @@ async fn update_order_status(
             .await;
 
         if let Err(_) = result {
-             return (StatusCode::INTERNAL_SERVER_ERROR, "Database Error").into_response();
+            return (StatusCode::INTERNAL_SERVER_ERROR, "Database Error").into_response();
         }
     }
 
     // 返回更新后的完整对象 (略，为简化起见返回成功消息，或调用 list_orders 的逻辑获取单个)
     // 按照文档 "Response (200): Updated Order object"，最好是返回 OrderResponse。
     // 这里偷懒返回简单的 Order 结构体，实际项目建议复用 fetch 逻辑。
-    let updated_order = query_as::<_, Order>("SELECT * FROM orders WHERE id = ?").bind(order_id).fetch_one(&state.db).await.unwrap();
+    let updated_order = query_as::<_, Order>("SELECT * FROM orders WHERE id = ?")
+        .bind(order_id)
+        .fetch_one(&state.db)
+        .await
+        .unwrap();
     Json(updated_order).into_response()
 }
-
 
 // ==========================================
 // 权限检查辅助函数 (简单版)
 // ==========================================
 fn check_read_permission(claims: &Claims, event_id: i64) -> Result<(), (StatusCode, &'static str)> {
-    if claims.role == "admin" || (claims.role == "vendor" && (claims.access == "all" || claims.event_id == Some(event_id))) {
+    if claims.role == "admin"
+        || (claims.role == "vendor"
+            && (claims.access == "all" || claims.event_id == Some(event_id)))
+    {
         Ok(())
     } else {
         Err((StatusCode::FORBIDDEN, "Access denied"))
     }
 }
 
-fn check_write_permission(claims: &Claims, event_id: i64) -> Result<(), (StatusCode, &'static str)> {
+fn check_write_permission(
+    claims: &Claims,
+    event_id: i64,
+) -> Result<(), (StatusCode, &'static str)> {
     // 读写逻辑目前一致
     check_read_permission(claims, event_id)
 }

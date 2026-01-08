@@ -7,7 +7,7 @@
     "beforeDevCommand": "npm run dev --prefix frontend",
     "beforeBuildCommand": "npm run build --prefix frontend",
     "devUrl": "http://localhost:5173",
-    "frontendDist": "frontend/dist" 
+    "frontendDist": "../frontend/dist"
   },
   "app": {
     "windows": [
@@ -15,13 +15,13 @@
         "title": "漫展摆摊助手",
         "width": 1024,
         "height": 768
-        
       }
     ]
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["nsis"],
+
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

@@ -25,8 +25,8 @@ pub fn router() -> Router<AppState> {
         .route("/", get(list_events))
         .route("/:id", get(get_event))
         // 管理员接口
-        .route("/", post(create_event)) 
-        .route("/:id", post(update_event).put(update_event)) 
+        .route("/", post(create_event))
+        .route("/:id", post(update_event).put(update_event))
         .route("/:id/status", put(update_status))
         .route("/:id", delete(delete_event))
 }
@@ -41,27 +41,36 @@ struct ListEventsQuery {
     status: Option<String>,
 }
 
-// 2. 用于 API 响应的结构体 (解决 qrcode_url 问题)
+// 2. 用于 API 响应的结构体 (解决 qrcode_url 问题，避免 flatten 导致的序列化问题)
 #[derive(Serialize)]
 struct EventResponse {
-    #[serde(flatten)] // 将原始 Event 的字段展开 (id, name, date...)
-    base: Event,
-    
-    // 覆盖/新增字段：对外暴露的 URL
-    qrcode_url: Option<String>, 
+    pub id: i64,
+    pub name: String,
+    #[serde(rename = "date")]
+    pub event_date: String,
+    pub location: Option<String>,
+    pub status: String,
+    pub qrcode_url: Option<String>,
 }
 
 impl EventResponse {
     // 转换函数：将 DB 模型转换为 API 响应模型
     fn from_model(event: Event) -> Self {
-        // 假设静态文件服务挂载在 /static/ 上
-        // 数据库存的是 "events/xxx.jpg"，转换成 "/static/uploads/events/xxx.jpg"
+        // 数据库存的是 "events/xxx.jpg"，转换成 "/uploads/events/xxx.jpg"
         let qrcode_url = event.payment_qr_code_path.as_ref().map(|path| {
-            format!("/static/uploads/{}", path)
+            if path.starts_with("/uploads/") {
+                path.clone()
+            } else {
+                format!("/uploads/{}", path)
+            }
         });
 
         Self {
-            base: event,
+            id: event.id,
+            name: event.name,
+            event_date: event.event_date,
+            location: event.location,
+            status: event.status,
             qrcode_url,
         }
     }
@@ -75,6 +84,7 @@ async fn list_events(
     Query(params): Query<ListEventsQuery>, // [修复] 接收 Query 参数
 ) -> impl IntoResponse {
     // 根据是否传了 status 决定 SQL
+    // 【关键】所有情况下都使用 unwrap_or_default() 确保返回空数组而不是 null
     let events: Vec<Event> = if let Some(status) = params.status {
         query_as::<_, Event>("SELECT * FROM events WHERE status = ? ORDER BY event_date DESC")
             .bind(status)
@@ -89,7 +99,9 @@ async fn list_events(
     };
 
     // [修复] 转换为包含 qrcode_url 的 Response 对象
-    let response: Vec<EventResponse> = events.into_iter()
+    // 即使 events 为空，也会返回 [] (空数组) 而不是 null
+    let response: Vec<EventResponse> = events
+        .into_iter()
         .map(EventResponse::from_model)
         .collect();
 
@@ -99,10 +111,7 @@ async fn list_events(
 // ==========================================
 // 2. 获取单个漫展 (Public) [已修复响应]
 // ==========================================
-async fn get_event(
-    State(state): State<AppState>,
-    Path(id): Path<i64>,
-) -> impl IntoResponse {
+async fn get_event(State(state): State<AppState>, Path(id): Path<i64>) -> impl IntoResponse {
     let event: Option<Event> = query_as::<_, Event>("SELECT * FROM events WHERE id = ?")
         .bind(id)
         .fetch_optional(&state.db)
@@ -111,8 +120,15 @@ async fn get_event(
 
     match event {
         // [修复] 转换响应结构
-        Some(e) => (StatusCode::OK, Json(EventResponse::from_model(e))).into_response(),
-        None => (StatusCode::NOT_FOUND, Json(json!({"error": "Event not found"}))).into_response(),
+        Some(e) => {
+            let response = EventResponse::from_model(e);
+            (StatusCode::OK, Json(response)).into_response()
+        }
+        None => (
+            StatusCode::NOT_FOUND,
+            Json(json!({"error": "Event not found"})),
+        )
+            .into_response(),
     }
 }
 
@@ -138,7 +154,11 @@ async fn create_event(
                 Ok(path) => qr_code_path = Some(path),
                 Err(e) => {
                     eprintln!("Upload Failed: {}", e);
-                    return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": "Failed to save file"}))).into_response();
+                    return (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(json!({"error": "Failed to save file"})),
+                    )
+                        .into_response();
                 }
             }
         } else {
@@ -158,31 +178,33 @@ async fn create_event(
     }
 
     if name.is_empty() || date.is_empty() {
-        return (StatusCode::BAD_REQUEST, Json(json!({"error": "Name and Date are required"}))).into_response();
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error": "Name and Date are required"})),
+        )
+            .into_response();
     }
 
-    let result = query(
+    // [修复] 使用 RETURNING 子句原子地获取插入的数据，避免并发问题和重复插入
+    let result = query_as::<_, Event>(
         r#"
         INSERT INTO events (name, event_date, location, vendor_password, payment_qr_code_path, status)
         VALUES (?, ?, ?, ?, ?, '未进行')
-        RETURNING id
+        RETURNING *
         "#
     )
-    .bind(name)
-    .bind(date)
-    .bind(if location.is_empty() { None } else { Some(location) })
-    .bind(vendor_password)
-    .bind(qr_code_path)
+    .bind(&name)
+    .bind(&date)
+    .bind(if location.is_empty() { None } else { Some(&location) })
+    .bind(&vendor_password)
+    .bind(&qr_code_path)
     .fetch_one(&state.db)
     .await;
 
     match result {
-        Ok(row) => {
-            // 注意：Created 响应通常只返回简单信息或新对象，这里保持原样返回简单 JSON
-            // 如果前端创建后立即需要 qrcode_url，这里也可以查一次库并返回 EventResponse
-            use sqlx::Row;
-            let id: i64 = row.try_get("id").unwrap_or(0);
-            (StatusCode::CREATED, Json(json!({ "id": id, "message": "Event created" }))).into_response()
+        Ok(event) => {
+            let response = EventResponse::from_model(event);
+            (StatusCode::CREATED, Json(response)).into_response()
         }
         Err(e) => {
             eprintln!("DB Error: {:?}", e);
@@ -204,7 +226,7 @@ async fn update_event(
         .bind(id)
         .fetch_optional(&state.db)
         .await
-        .unwrap_or(None) 
+        .unwrap_or(None)
     {
         Some(e) => e,
         None => return (StatusCode::NOT_FOUND, "Event not found").into_response(),
@@ -224,13 +246,14 @@ async fn update_event(
             match save_upload_file(&state.upload_dir, field, Some("events")).await {
                 Ok(new_path) => {
                     if let Some(old_path) = &qr_code_path {
-                         let _ = delete_file(&state.upload_dir, old_path).await;
+                        let _ = delete_file(&state.upload_dir, old_path).await;
                     }
                     qr_code_path = Some(new_path);
                 }
                 Err(e) => {
                     eprintln!("Update Upload Failed: {}", e);
-                    return (StatusCode::INTERNAL_SERVER_ERROR, "File upload failed").into_response();
+                    return (StatusCode::INTERNAL_SERVER_ERROR, "File upload failed")
+                        .into_response();
                 }
             }
         } else {
@@ -243,7 +266,7 @@ async fn update_event(
                     if !value.is_empty() {
                         vendor_password_hash = Some(hash_password(&value));
                     }
-                },
+                }
                 "remove_payment_qr_code" => {
                     if value == "true" {
                         should_remove_qr = true;
@@ -261,12 +284,14 @@ async fn update_event(
         qr_code_path = None;
     }
 
-    let result = query(
+    // [修复] 使用 RETURNING 子句原子地获取更新后的数据
+    let result = query_as::<_, Event>(
         r#"
         UPDATE events 
         SET name = ?, event_date = ?, location = ?, vendor_password = ?, payment_qr_code_path = ?
         WHERE id = ?
-        "#
+        RETURNING *
+        "#,
     )
     .bind(name)
     .bind(date)
@@ -274,11 +299,14 @@ async fn update_event(
     .bind(vendor_password_hash)
     .bind(qr_code_path)
     .bind(id)
-    .execute(&state.db)
+    .fetch_one(&state.db)
     .await;
 
     match result {
-        Ok(_) => (StatusCode::OK, Json(json!({"message": "Event updated"}))).into_response(),
+        Ok(event) => {
+            let response = EventResponse::from_model(event);
+            (StatusCode::OK, Json(response)).into_response()
+        }
         Err(e) => {
             eprintln!("Update DB Error: {:?}", e);
             (StatusCode::INTERNAL_SERVER_ERROR, "Database Error").into_response()
@@ -303,21 +331,35 @@ async fn update_status(
     // [修复] 验证状态值只能是允许的值 ✓
     match payload.status.as_str() {
         "未进行" | "进行中" | "已结束" => {
-            // 状态值有效，继续处理
-            let result = query("UPDATE events SET status = ? WHERE id = ?")
-                .bind(&payload.status)
-                .bind(id)
-                .execute(&state.db)
-                .await;
+            // 使用 RETURNING 子句原子地更新并获取完整数据
+            let result = query_as::<_, Event>(
+                r#"
+                UPDATE events 
+                SET status = ? 
+                WHERE id = ?
+                RETURNING *
+                "#,
+            )
+            .bind(&payload.status)
+            .bind(id)
+            .fetch_one(&state.db)
+            .await;
 
             match result {
-                Ok(_) => (StatusCode::OK, Json(json!({"message": "Status updated"}))).into_response(),
+                Ok(event) => {
+                    let response = EventResponse::from_model(event);
+                    (StatusCode::OK, Json(response)).into_response()
+                }
                 Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Database Error").into_response(),
             }
         }
         _ => {
             // 无效的状态值
-            (StatusCode::BAD_REQUEST, Json(json!({"error": "Invalid status. Must be one of: 未进行, 进行中, 已结束"}))).into_response()
+            (
+                StatusCode::BAD_REQUEST,
+                Json(json!({"error": "Invalid status. Must be one of: 未进行, 进行中, 已结束"})),
+            )
+                .into_response()
         }
     }
 }
@@ -341,37 +383,37 @@ async fn delete_event(
         if let Some(path) = &e.payment_qr_code_path {
             let _ = delete_file(&state.upload_dir, &path).await;
         }
-        
+
         // 2. [修复] 删除关联的 orders 和 products (级联删除) ✓
         // 注意：SQLite 需要开启 PRAGMA foreign_keys = ON 才能自动级联删除
         // 这里显式删除以确保不依赖 DB 配置
-        
+
         // 先删除 orders 相关的 order_items
         let _ = sqlx::query(
-            "DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE event_id = ?)"
+            "DELETE FROM order_items WHERE order_id IN (SELECT id FROM orders WHERE event_id = ?)",
         )
         .bind(id)
         .execute(&state.db)
         .await;
-        
+
         // 删除 orders
         let _ = sqlx::query("DELETE FROM orders WHERE event_id = ?")
             .bind(id)
             .execute(&state.db)
             .await;
-        
+
         // 删除 products
         let _ = sqlx::query("DELETE FROM products WHERE event_id = ?")
             .bind(id)
             .execute(&state.db)
             .await;
-        
+
         // 3. 最后删除 event
         let _ = query("DELETE FROM events WHERE id = ?")
             .bind(id)
             .execute(&state.db)
             .await;
-            
+
         (StatusCode::OK, Json(json!({"message": "Event deleted"}))).into_response()
     } else {
         (StatusCode::NOT_FOUND, "Event not found").into_response()

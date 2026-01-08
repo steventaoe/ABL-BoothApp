@@ -53,7 +53,12 @@ const router = useRouter();
 
 // 计算属性，只筛选出“进行中”的展会
 const ongoingEvents = computed(() => {
-  return eventStore.events.filter(event => event.status === '进行中');
+  // 防御性检查：确保 eventStore.events 是数组
+  const events = Array.isArray(eventStore.events) ? eventStore.events : [];
+  if (!Array.isArray(eventStore.events) && eventStore.events) {
+    console.error('❌ eventStore.events 不是数组:', eventStore.events);
+  }
+  return events.filter(event => event.status === '进行中');
 });
 
 function selectEvent(event) {

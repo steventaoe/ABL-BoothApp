@@ -77,7 +77,6 @@
 import { ref, computed, onMounted } from 'vue';
 import { useProductStore } from '@/stores/productStore';
 import { NInput, NSelect, NImage, NButton, NSpin, NCard } from 'naive-ui';
-const backendUrl = 'http://127.0.0.1:5000';
 const store = useProductStore();
 defineEmits(['edit', 'toggleStatus']);
 
