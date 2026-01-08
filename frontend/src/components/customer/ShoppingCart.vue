@@ -128,7 +128,7 @@ onUnmounted(() => {
 
 .item-price {
   font-size: 1rem;
-  color: #aaa;
+  color: var(--text-muted);
 }
 
 .item-controls {
@@ -164,7 +164,7 @@ onUnmounted(() => {
   justify-content: center;
   align-items: center;
   height: 100%;
-  color: #888;
+  color: var(--text-disabled);
   font-size: 1.2rem;
 }
 .empty-cart span {
@@ -209,12 +209,12 @@ onUnmounted(() => {
   align-items: center;
   padding: 1rem 1.2rem;
   background: var(--accent-color);
-  color: #fff;
+  color: var(--text-white);
   font-size: 1.2rem;
   font-weight: bold;
   border-radius: 12px 12px 0 0;
   cursor: pointer;
-  box-shadow: 0 -2px 12px rgba(0,0,0,0.12);
+  box-shadow: 0 -2px 12px var(--shadow-color);
   position: relative;
   z-index: 10;
 }
@@ -240,7 +240,7 @@ onUnmounted(() => {
     width: 100vw;
     max-width: 100vw;
     z-index: 1201;
-    box-shadow: 0 -2px 16px rgba(0,0,0,0.18);
+    box-shadow: 0 -2px 16px var(--shadow-color);
     border-radius: 12px 12px 0 0;
     transition: transform 0.25s cubic-bezier(.4,2,.6,1), box-shadow 0.2s;
     height: auto;

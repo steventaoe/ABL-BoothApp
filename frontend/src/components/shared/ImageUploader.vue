@@ -180,8 +180,8 @@ function resetState() {
   position: absolute;
   top: 5px;
   left: 5px;
-  background-color: rgba(0, 0, 0, 0.6);
-  color: white;
+  background-color: var(--overlay-color);
+  color: var(--text-white);
   padding: 2px 6px;
   font-size: 0.8rem;
   border-radius: 3px;
@@ -191,25 +191,25 @@ function resetState() {
   padding: 2rem 3rem;
   border: 2px dashed var(--border-color);
   border-radius: 4px;
-  color: #888;
+  color: var(--text-disabled);
 }
 .image-actions {
   display: flex;
   gap: 1rem;
 }
 .btn-secondary {
-  background-color: #555;
-  border-color: #555;
-  color: white; /* 确保文字可见 */
+  background-color: var(--btn-secondary);
+  border-color: var(--btn-secondary);
+  color: var(--text-white);
   border: 1px solid transparent;
   padding: 8px 12px;
   cursor: pointer;
   border-radius: 4px;
 }
-.btn-secondary:hover { background-color: #666; }
+.btn-secondary:hover { background-color: var(--btn-secondary-hover); }
 .btn-danger {
   background-color: var(--error-color);
-  color: white;
+  color: var(--text-white);
   border: 1px solid transparent;
   padding: 8px 12px;
   cursor: pointer;

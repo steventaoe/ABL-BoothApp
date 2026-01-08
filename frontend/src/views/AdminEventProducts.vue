@@ -264,7 +264,7 @@ onUnmounted(() => {
   border-bottom: 1px solid var(--border-color);
 }
 .page-header h1 { color: var(--accent-color); margin: 0; }
-.page-header p { color: #aaa; margin-top: 0.5rem; }
+.page-header p { color: var(--text-muted); margin-top: 0.5rem; }
 .btn-back {
   position: absolute;
   top: 0;
@@ -306,11 +306,11 @@ onUnmounted(() => {
 .product-table td {
   padding: 12px 16px;
   border-bottom: 1px solid var(--border-color);
-  color: #ccc;
+  color: var(--text-placeholder);
   vertical-align: middle;
 }
 .product-table tbody tr:hover {
-  background-color: rgba(3, 218, 198, 0.05);
+  background-color: var(--accent-color-light);
 }
 .product-table th:first-child, .product-table td:first-child { padding-left: 0; }
 .product-table th:last-child, .product-table td:last-child { text-align: right; padding-right: 0; }
@@ -332,7 +332,7 @@ onUnmounted(() => {
   line-height: 50px;
   text-align: center;
   font-size: 0.8rem;
-  color: #888;
+  color: var(--text-disabled);
   background-color: var(--bg-color);
   border: 1px solid var(--border-color);
   border-radius: 4px;
@@ -386,7 +386,7 @@ onUnmounted(() => {
   background-color: var(--bg-color);
 }
 .no-results-message {
-  color: #888;
+  color: var(--text-disabled);
   padding: 1rem;
   text-align: center;
 }
@@ -414,11 +414,11 @@ onUnmounted(() => {
 }
 .preview-item:hover {
   border-color: var(--accent-color);
-  background-color: rgba(3, 218, 198, 0.1);
+  background-color: var(--accent-color-light);
 }
 .preview-item.selected {
   border-color: var(--accent-color);
-  background-color: rgba(3, 218, 198, 0.12);
+  background-color: var(--accent-color-light);
 }
 
 .preview-item-img {
@@ -451,7 +451,7 @@ onUnmounted(() => {
 
 .preview-item-code {
   font-size: 0.75rem;
-  color: #888;
+  color: var(--text-disabled);
 }
 .preview-item-price {
   font-size: 0.75rem;
@@ -467,7 +467,7 @@ onUnmounted(() => {
   border-width: 2px;
 }
 .search-input :deep(.n-input:not(.n-input--disabled):focus-within) {
-  box-shadow: 0 0 0 2px rgba(3, 218, 198, 0.2);
+  box-shadow: 0 0 0 2px var(--accent-color-light);
   border-color: var(--accent-color);
 }
 

@@ -97,7 +97,7 @@ function handleCardClick(product) {
 
 .product-card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 16px var(--shadow-color);
   border-color: var(--accent-color);
 }
 
@@ -163,11 +163,11 @@ function handleCardClick(product) {
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.6);
+  background-color: var(--overlay-color);
   display: flex;
   justify-content: center;
   align-items: center;
-  color: white;
+  color: var(--text-white);
   font-size: 1.5rem;
   font-weight: bold;
   backdrop-filter: blur(2px);

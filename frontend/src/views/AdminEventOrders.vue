@@ -150,7 +150,7 @@ onUnmounted(() => {
   border-bottom: 1px solid var(--border-color);
 }
 .page-header h1 { color: var(--accent-color); margin: 0; }
-.page-header p { color: #aaa; margin-top: 0.5rem; }
+.page-header p { color: var(--text-muted); margin-top: 0.5rem; }
 .btn-back {
   position: absolute;
   top: 0;
@@ -202,11 +202,11 @@ onUnmounted(() => {
 .order-table td {
   padding: 12px 16px;
   border-bottom: 1px solid var(--border-color);
-  color: #ccc;
+  color: var(--text-placeholder);
   vertical-align: middle;
 }
 .order-table tbody tr:hover {
-  background-color: rgba(3, 218, 198, 0.05);
+  background-color: var(--accent-color-light);
 }
 .order-table th:first-child, .order-table td:first-child { padding-left: 0; }
 .order-table th:last-child, .order-table td:last-child { text-align: right; padding-right: 0; }
@@ -228,7 +228,7 @@ onUnmounted(() => {
   line-height: 50px;
   text-align: center;
   font-size: 0.8rem;
-  color: #888;
+  color: var(--text-disabled);
   background-color: var(--bg-color);
   border: 1px solid var(--border-color);
   border-radius: 4px;
@@ -288,8 +288,8 @@ button:disabled {
 }
 
 .action-btn.btn-danger:hover {
-  background-color: rgba(244, 67, 54, 0.1); /* 淡红色背景 */
-  border-color: rgba(244, 67, 54, 0.4);
+  background-color: var(--accent-color-light);
+  border-color: var(--error-color);
 }
 .filters {
   margin-bottom: 1.5rem;
@@ -346,16 +346,16 @@ button:disabled {
   white-space: nowrap;
 }
 .status-badge.status-pending {
-  background-color: rgba(251, 140, 0, 0.15); /* 橙色 */
-  color: #FB8C00;
+  background-color: rgba(251, 140, 0, 0.15);
+  color: var(--warning-color-alt);
 }
 .status-badge.status-completed {
   background-color: rgba(3, 218, 198, 0.15); /* 青色/主题色 */
   color: var(--accent-color);
 }
 .status-badge.status-cancelled {
-  background-color: rgba(158, 158, 158, 0.15); /* 灰色 */
-  color: #9E9E9E;
+  background-color: rgba(158, 158, 158, 0.15);
+  color: var(--cancelled-color);
 }
 
 /* --- 操作菜单的全新样式 --- */

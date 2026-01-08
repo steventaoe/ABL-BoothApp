@@ -193,7 +193,7 @@ onMounted(async() => {
 .product-table td {
   padding: 8px 12px; /* 缩小行高 */
   border-bottom: 1px solid var(--border-color); /* 使用柔和的水平分隔线 */
-  color: #ccc; /* 数据文字颜色稍暗，以突出标题 */
+  color: var(--secondary-text-color); /* 数据文字颜色稍暗，以突出标题 */
   vertical-align: middle;
 }
 
@@ -203,7 +203,7 @@ onMounted(async() => {
 }
 
 .product-table tbody tr:hover {
-  background-color: rgba(3, 218, 198, 0.05); /* 鼠标悬浮时显示淡淡的主题色背景 */
+  background-color: var(--accent-color-light); /* 鼠标悬浮时显示淡淡的主题色背景 */
 }
 
 /* --- 特定列的微调 --- */
@@ -243,7 +243,7 @@ onMounted(async() => {
   line-height: 50px;
   text-align: center;
   font-size: 0.8rem;
-  color: #888;
+  color: var(--text-disabled);
   background-color: var(--bg-color);
   border: 1px solid var(--border-color);
   border-radius: 4px;
@@ -251,7 +251,7 @@ onMounted(async() => {
 }
 .inactive {
   opacity: 0.5;
-  background-color: rgba(100, 100, 100, 0.1);
+  background-color: var(--bg-elevated);
 }
 .inactive td {
   text-decoration: line-through; /* 添加删除线 */
@@ -262,7 +262,7 @@ onMounted(async() => {
 }
 .btn-success:hover {
   background-color: var(--success-color);
-  color: white;
+  color: var(--text-white);
 }
 .category-select {
   margin-left: 0; /* 使用上方 gap 控制间距 */

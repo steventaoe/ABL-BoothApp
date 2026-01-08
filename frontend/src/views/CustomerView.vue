@@ -220,7 +220,7 @@ onUnmounted(() => {
 .category-btn.active,
 .category-btn:hover {
   background: var(--accent-color);
-  color: #fff;
+  color: var(--text-on-dark);
   border-color: var(--accent-color);
 }
 .category-list {
@@ -255,9 +255,9 @@ onUnmounted(() => {
 .card-size-toolbar button.active,
 .card-size-toolbar button:focus {
   background: var(--accent-color);
-  color: #fff;
+  color: var(--text-on-dark);
   border-color: var(--accent-color);
-  box-shadow: 0 0 0 2px rgba(3,218,198,0.2);
+  box-shadow: 0 0 0 2px var(--accent-color-light);
 }
 
 .card-size-toolbar button:hover:not(.active) {
@@ -279,7 +279,7 @@ onUnmounted(() => {
     z-index: 1200;
     background: var(--card-bg-color);
     border-right: 1px solid var(--border-color);
-    box-shadow: 2px 0 12px rgba(0,0,0,0.08);
+    box-shadow: var(--shadow-sm);
     padding: 0.5rem 0.2rem 0.5rem 0.2rem;
     overflow-y: auto;
     flex: none;

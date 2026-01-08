@@ -30,7 +30,7 @@ const alertStore = useAlertStore();
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.6);
+  background-color: var(--overlay-color);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -38,24 +38,24 @@ const alertStore = useAlertStore();
 }
 
 .alert-box {
-  background-color: #2c2c3e; /* 深色背景 */
+  background-color: var(--alert-bg);
   border-radius: 8px;
   width: 90%;
   max-width: 400px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-  border-top: 4px solid #4a90e2; /* 默认信息蓝 */
-  color: #e0e0e0;
+  box-shadow: 0 10px 30px var(--shadow-color);
+  border-top: 4px solid var(--alert-info);
+  color: var(--primary-text-color);
   transform: scale(1);
 }
 
 /* 根据类型改变边框颜色 */
-.alert-box.alert-success { border-top-color: #50e3c2; }
-.alert-box.alert-warning { border-top-color: #f5a623; }
-.alert-box.alert-error { border-top-color: #d0021b; }
+.alert-box.alert-success { border-top-color: var(--alert-success); }
+.alert-box.alert-warning { border-top-color: var(--alert-warning); }
+.alert-box.alert-error { border-top-color: var(--alert-error); }
 
 .alert-header {
   padding: 1rem 1.5rem;
-  border-bottom: 1px solid #444;
+  border-bottom: 1px solid var(--border-color-light);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -69,7 +69,7 @@ const alertStore = useAlertStore();
   background: none;
   border: none;
   font-size: 2rem;
-  color: #888;
+  color: var(--text-disabled);
   cursor: pointer;
   padding: 0;
   line-height: 1;
@@ -83,15 +83,15 @@ const alertStore = useAlertStore();
 
 .alert-footer {
   padding: 1rem 1.5rem;
-  background-color: rgba(0, 0, 0, 0.2);
+  background-color: var(--bg-elevated);
   display: flex;
   justify-content: flex-end;
   border-radius: 0 0 8px 8px;
 }
 
 .ok-btn {
-  background-color: #4a90e2; /* 默认信息蓝 */
-  color: white;
+  background-color: var(--info-color);
+  color: var(--text-white);
   border: none;
   padding: 0.75rem 2rem;
   border-radius: 5px;
@@ -100,16 +100,16 @@ const alertStore = useAlertStore();
   transition: background-color 0.2s;
 }
 .ok-btn:hover {
-  background-color: #357abd;
+  background-color: var(--info-color-hover);
 }
 
 /* 根据类型改变按钮颜色 */
-.alert-success .ok-btn { background-color: #50e3c2; }
-.alert-success .ok-btn:hover { background-color: #38a88f; }
-.alert-warning .ok-btn { background-color: #f5a623; }
-.alert-warning .ok-btn:hover { background-color: #d48e1a; }
-.alert-error .ok-btn { background-color: #d0021b; }
-.alert-error .ok-btn:hover { background-color: #a00114; }
+.alert-success .ok-btn { background-color: var(--alert-success); }
+.alert-success .ok-btn:hover { background-color: var(--success-color-hover); }
+.alert-warning .ok-btn { background-color: var(--alert-warning); }
+.alert-warning .ok-btn:hover { background-color: var(--warning-color-hover); }
+.alert-error .ok-btn { background-color: var(--alert-error); }
+.alert-error .ok-btn:hover { background-color: var(--error-color-hover); }
 
 /* 过渡动画 */
 .alert-fade-enter-active,

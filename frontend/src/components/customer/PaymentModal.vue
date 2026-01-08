@@ -93,7 +93,7 @@ const cardStyle = computed(() => ({
 
 .no-qr-code {
   padding: 2rem;
-  color: #888;
+  color: var(--text-disabled);
   border: 2px dashed var(--border-color);
   border-radius: 8px;
   background-color: var(--bg-color);
@@ -105,7 +105,7 @@ const cardStyle = computed(() => ({
 
 .payment-card p {
   margin: 0;
-  color: #aaa;
+  color: var(--text-muted);
 }
 
 @media (max-width: 600px) {

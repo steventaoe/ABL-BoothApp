@@ -1,12 +1,4 @@
-:root {
-  --bg-color: #121212;
-  --primary-text-color: #E0E0E0;
-  --accent-color: #03DAC6;
-  --card-bg-color: #101010;
-  --border-color: #2c2c2c;
-  --success-color: #4CAF50;
-  --error-color: #F44336;
-}
+/* CSS 变量现在由 App.vue 动态注入，此处仅保留基础全局样式 */
 
 body {
   background-color: var(--bg-color);

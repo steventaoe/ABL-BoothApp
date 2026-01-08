@@ -1,9 +1,27 @@
 <template>
   <div class="dashboard-container">
     <header>
-      <h1>管理后台</h1>
-      <p>在这里管理您的所有展会和商品。</p>
+      <div class="header-row">
+        <div>
+          <h1>管理后台</h1>
+          <p>在这里管理您的所有展会和商品。</p>
+        </div>
+        <div class="header-actions">
+          <n-button secondary type="primary" @click="showThemeModal = true">主题设置</n-button>
+        </div>
+      </div>
     </header>
+
+    <n-modal
+      v-model:show="showThemeModal"
+      preset="card"
+      title="主题设置"
+      :mask-closable="false"
+      style="max-width: 960px"
+      class="theme-modal"
+    >
+      <ThemeSetting />
+    </n-modal>
     <main>
       <n-space vertical size="large">
         <!-- 安全设置 -->
@@ -13,7 +31,7 @@
               <n-button type="primary" :loading="isFetching" @click="fetchServerInfo">
                 {{ isFetching ? '获取中...' : '获取局域网二维码' }}
               </n-button>
-              <span class="hint">同一局域网内扫码可直接访问对应页面</span>
+              <span class="hint">同一局域网内扫码可直接访问对应页面, 若无法连接请检查主机的防火墙设置</span>
             </div>
             <n-alert v-if="fetchError" type="error" :bordered="false">{{ fetchError }}</n-alert>
             <div v-if="serverInfo" class="qr-grid">
@@ -91,7 +109,8 @@
 // 导入需要的组件
 import CreateEventForm from '@/components/event/CreateEventForm.vue';
 import EventList from '@/components/event/EventList.vue';
-import { NSpace, NCard, NButton, NAlert, NForm, NFormItem, NInput } from 'naive-ui';
+import ThemeSetting from '@/views/ThemeSetting.vue';
+import { NSpace, NCard, NButton, NAlert, NForm, NFormItem, NInput, NModal } from 'naive-ui';
 import QrcodeVue from 'qrcode.vue';
 import api from '@/services/api';
 import { ref } from 'vue';
@@ -107,6 +126,7 @@ const vendorSaving = ref(false);
 const adminMessage = ref('');
 const vendorMessage = ref('');
 const securityCollapsed = ref(false);
+const showThemeModal = ref(false);
 
 // 本地二维码组件由 qrcode.vue 渲染
 
@@ -168,13 +188,23 @@ header {
   padding-bottom: 1rem;
   border-bottom: 1px solid var(--border-color);
 }
+header .header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
 header h1 {
   color: var(--accent-color);
   margin: 0;
 }
 header p {
-  color: #aaa;
+  color: var(--text-muted);
   margin-top: 0.5rem;
+}
+header .header-actions {
+  display: flex;
+  gap: 0.5rem;
 }
 
 .qr-actions {
@@ -183,7 +213,7 @@ header p {
   gap: 1rem;
 }
 .hint {
-  color: #aaa;
+  color: var(--text-muted);
   font-size: 0.9rem;
 }
 .qr-grid {
@@ -209,7 +239,7 @@ header p {
   align-self: center;
   border: 1px solid var(--border-color);
   border-radius: 4px;
-  background: #fff;
+  background: var(--text-white);
 }
 .qr-card a {
   word-break: break-all;
@@ -233,5 +263,8 @@ header p {
 }
 .mt-8 {
   margin-top: 0.5rem;
+}
+.theme-modal :deep(.n-card__content) {
+  padding-top: 0;
 }
 </style>

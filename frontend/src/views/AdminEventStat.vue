@@ -261,16 +261,7 @@ watch(() => route.params.id, (newEventId) => {
 </script>
 
 <style scoped>
-/* 假设你的主题色定义在 :root 或其他全局样式中 */
-/* :root {
-  --bg-color: #1a1a1a;
-  --card-bg-color: #242424;
-  --border-color: #3a3a3a;
-  --primary-text-color: #e0e0e0;
-  --secondary-text-color: #a0a0a0;
-  --accent-color: #03dac6;
-  --accent-color-dark: #018786;
-} */
+/* 主题色通过 App.vue 动态注入 */
 
 .admin-event-stat {
   padding: 2rem;
@@ -314,8 +305,8 @@ h1 {
   color: var(--accent-color);
 }
 .download-btn:hover {
-  background-color: rgba(3, 218, 198, 0.1);
-  box-shadow: 0 0 15px rgba(3, 218, 198, 0.3);
+  background-color: var(--accent-color-light);
+  box-shadow: 0 0 15px var(--accent-color-shadow);
   transform: translateY(-2px);
 }
 
@@ -325,10 +316,10 @@ h1 {
   color: var(--secondary-text-color);
   border: 1px dashed var(--border-color);
   border-radius: 8px;
-  background-color: rgba(0,0,0,0.1);
+  background-color: var(--overlay-light);
 }
 .error-message p { margin: 0.5rem 0; }
-.error-message strong { color: #ff5555; }
+.error-message strong { color: var(--error-color); }
 .btn-secondary { background-color: var(--card-bg-color); color: var(--primary-text-color); margin-top: 1rem;}
 .btn-secondary:hover { border-color: var(--primary-text-color); }
 
@@ -429,7 +420,7 @@ svg {
 }
 
 .grid-lines line {
-  stroke: rgba(255,255,255,0.15);
+  stroke: var(--border-color-light);
   stroke-dasharray: 4 4;
   stroke-width: 1;
 }
@@ -442,14 +433,14 @@ svg {
 .chart-tooltip {
   position: absolute;
   transform: translate(-50%, -120%);
-  background: rgba(0, 0, 0, 0.75);
-  color: #fff;
+  background: var(--tooltip-bg-color);
+  color: var(--text-on-dark);
   padding: 0.5rem 0.75rem;
   border-radius: 6px;
-  border: 1px solid rgba(255,255,255,0.15);
+  border: 1px solid var(--border-color-light);
   pointer-events: none;
   white-space: nowrap;
-  box-shadow: 0 8px 20px rgba(0,0,0,0.35);
+  box-shadow: var(--shadow-lg);
 }
 
 .tooltip-date {
@@ -476,7 +467,7 @@ svg {
 }
 .card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+  box-shadow: var(--shadow-md);
 }
 .card::before {
   content: '';
@@ -542,7 +533,7 @@ tbody tr {
   transition: background-color 0.2s;
 }
 tbody tr:hover {
-  background-color: rgba(3, 218, 198, 0.05);
+  background-color: var(--accent-color-light);
 }
 tbody td {
   color: var(--primary-text-color);

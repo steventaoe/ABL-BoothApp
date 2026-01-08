@@ -63,7 +63,7 @@ const formattedTime = computed(() => {
 
 <style scoped>
 .order-card.is-completed {
-  border-left-color: #555; /* 已完成的订单用灰色边框 */
+  border-left-color: var(--order-completed); /* 已完成的订单用灰色边框 */
   opacity: 0.8;
 }
 .button-group { display: flex; gap: 0.5rem; }
@@ -90,7 +90,7 @@ const formattedTime = computed(() => {
   border-bottom: 1px solid var(--border-color);
 }
 .order-header h4 { margin: 0; color: var(--primary-text-color); }
-.order-header .order-time { font-size: 0.9rem; color: #aaa; }
+.order-header .order-time { font-size: 0.9rem; color: var(--text-muted); }
 
 /* --- 【新增/修改】商品列表样式 --- */
 .item-list {
@@ -122,7 +122,7 @@ const formattedTime = computed(() => {
   display: flex;
   justify-content: center;
   align-items: center;
-  color: #888;
+  color: var(--text-disabled);
   background-color: var(--bg-color);
 }
 
@@ -134,12 +134,12 @@ const formattedTime = computed(() => {
 
 .item-name {
   font-weight: 600;
-  color: #eee;
+  color: var(--primary-text-color);
 }
 
 .item-price {
   font-size: 0.85rem;
-  color: #aaa;
+  color: var(--text-muted);
 }
 
 .item-quantity {
@@ -193,6 +193,6 @@ const formattedTime = computed(() => {
 
 .btn-cancel:hover {
   background-color: var(--error-color);
-  color: white;
+  color: var(--text-white);
 }
 </style>

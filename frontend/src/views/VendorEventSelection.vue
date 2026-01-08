@@ -106,7 +106,7 @@ onMounted(() => {
 }
 .no-events-message {
   margin-top: 2rem;
-  color: #888;
+  color: var(--text-muted);
 }
 .admin-login-link {
   margin-top: 2rem;

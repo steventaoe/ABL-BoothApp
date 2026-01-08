@@ -182,7 +182,7 @@ onUnmounted(() => {
 .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; }
 .page-header h1 { margin: 0; color: var(--accent-color); }
 .order-tabs { margin-bottom: 1.5rem; }
-.no-orders-message { text-align: center; padding: 3rem; color: #888; }
+.no-orders-message { text-align: center; padding: 3rem; color: var(--text-muted); }
 .revenue-summary { text-align: right; font-size: 1.1rem; margin-bottom: 1rem; }
 .list-enter-active, .list-leave-active { transition: all 0.5s ease; }
 .list-enter-from, .list-leave-to { opacity: 0; transform: translateX(30px); }

@@ -221,7 +221,7 @@ async function handleToggleStatus(product) {
   border-bottom: 1px solid var(--border-color);
 }
 .page-header h1 { color: var(--accent-color); margin: 0; }
-.page-header p { color: #aaa; margin-top: 0.5rem; }
+.page-header p { color: var(--text-muted); margin-top: 0.5rem; }
 
 .form-container {
   background-color: var(--card-bg-color);

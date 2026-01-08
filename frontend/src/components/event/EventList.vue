@@ -251,7 +251,7 @@ async function handleUpdateEvent() {
   border-radius: 12px;
   padding: 18px 20px;
   margin-bottom: 16px;     /* 卡片之间的间距 */
-  box-shadow: 0 6px 10px rgba(0,0,0,0.04);
+  box-shadow: 0 6px 10px var(--shadow-color);
   transition: transform 0.12s ease, box-shadow 0.12s ease;
   cursor: default;         /* clickable 类会改为 pointer */
   min-height: 72px;     /* 保持卡片高度一致 */
@@ -263,7 +263,7 @@ async function handleUpdateEvent() {
 }
 .event-card.clickable:hover {
   transform: translateY(-6px);
-  box-shadow: 0 12px 30px rgba(16,24,40,0.10);
+  box-shadow: 0 12px 30px var(--shadow-color);
 }
 /* 左侧信息区域占满剩余空间 */
 .event-info {
@@ -278,7 +278,7 @@ async function handleUpdateEvent() {
 }
 .event-info p {
   margin: 0;
-  color: var(--secondary-text-color, #888);
+  color: var(--secondary-text-color);
   font-size: 1rem;
   line-height: 1.3;
 }
@@ -305,9 +305,9 @@ async function handleUpdateEvent() {
 }
 
 /* 状态颜色类（保留现有类名） */
-.status-ongoing { background: rgba(255, 223, 87, 0.12); border-color: rgba(255, 223, 87, 0.25); }
-.status-finished { background: rgba(108, 117, 125, 0.08); border-color: rgba(108, 117, 125, 0.18); }
-.status-upcoming { background: rgba(3,218,198,0.08); border-color: rgba(3,218,198,0.18); }
+.status-ongoing { background: var(--accent-color-light); border-color: rgba(255, 223, 87, 0.25); }
+.status-finished { background: var(--bg-elevated); border-color: var(--border-color-light); }
+.status-upcoming { background: var(--accent-color-light); border-color: var(--accent-color); }
 
 .status-actions {
   margin-top: 0.5rem;
@@ -334,17 +334,17 @@ async function handleUpdateEvent() {
   transition: background-color 0.2s, border-color 0.2s;
 }
 .event-card.clickable:hover {
-  background-color: rgba(3, 218, 198, 0.05);
-  border-color: rgba(3, 218, 198, 0.3);
+  background-color: var(--accent-color-light);
+  border-color: var(--accent-color);
 }
 .delete-btn {
-  border-color: #dc3545; /* 红色边框 */
-  color: #dc3545;       /* 红色文字 */
+  border-color: var(--delete-color);
+  color: var(--delete-color);
 }
 
 .delete-btn:hover {
-  background-color: #dc3545; /* 悬停时红色背景 */
-  color: white;              /* 悬停时白色文字 */
+  background-color: var(--delete-color);
+  color: var(--text-white);
 }
 .search-container {
   background-color: var(--card-bg-color);
@@ -367,7 +367,7 @@ async function handleUpdateEvent() {
 
 .search-group label {
   font-size: 0.9rem;
-  color: #aaa;
+  color: var(--text-muted);
 }
 
 .search-group input[type="text"],
@@ -387,22 +387,22 @@ async function handleUpdateEvent() {
 }
 
 .date-range-inputs span {
-  color: #aaa;
+  color: var(--text-muted);
 }
 
 .btn-secondary {
-  background-color: #555;
-  border-color: #555;
-  color: white;
+  background-color: var(--btn-secondary);
+  border-color: var(--btn-secondary);
+  color: var(--text-white);
   padding: 8px 12px;
   height: fit-content; /* 让按钮高度与输入框匹配 */
 }
 .btn-secondary:hover {
-  background-color: #666;
+  background-color: var(--btn-secondary-hover);
 }
 .no-results-message {
   text-align: center;
   padding: 2rem;
-  color: #888;
+  color: var(--text-disabled);
 }
 </style>

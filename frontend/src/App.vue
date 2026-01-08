@@ -1,5 +1,5 @@
 <template>
-  <n-config-provider :theme="darkTheme" :theme-overrides="themeOverrides">
+  <n-config-provider :theme="naiveTheme" :theme-overrides="themeOverrides">
     <n-message-provider>
       <n-dialog-provider>
         <MainHeader />
@@ -11,34 +11,20 @@
 </template>
 
 <script setup>
+import { computed } from 'vue';
 import { RouterView } from 'vue-router';
 import GlobalAlert from '@/components/GlobalAlert.vue';
 import MainHeader from '@/components/shared/MainHeader.vue';
 import { NConfigProvider, NMessageProvider, NDialogProvider, darkTheme } from 'naive-ui';
+import { useThemeStore } from '@/stores/themeStore';
 
-// 结合现有全局样式变量，设置 Naive UI 的主题覆盖
-const themeOverrides = {
-  common: {
-    primaryColor: '#03DAC6',
-    primaryColorHover: '#04e2cd',
-    primaryColorPressed: '#02c7b5',
-    primaryColorSuppl: '#03DAC6',
-    textColorBase: '#E0E0E0',
-    textColor1: '#E0E0E0',
-    textColor2: '#C8C8C8',
-    bodyColor: '#121212',
-    cardColor: '#101010',
-    modalColor: '#101010',
-    popoverColor: '#101010',
-    tableColor: '#101010',
-    inputColor: '#121212',
-    borderColor: '#2c2c2c',
-    borderColorHover: '#3a3a3a',
-    borderColorPressed: '#3a3a3a',
-    dividerColor: '#2c2c2c',
-    successColor: '#4CAF50',
-    errorColor: '#F44336',
-  }
-};
+const themeStore = useThemeStore();
 
+// 让 Naive UI 随 store 的深色/浅色状态切换
+const naiveTheme = computed(() => (themeStore.isDark ? darkTheme : null));
+
+// 覆盖色板随用户自定义主色实时更新
+// 注意：在 Pinia setup store 中，naiveThemeOverrides 已经是解包后的值，
+// 这里不需要再取 .value，直接包一层 computed 保持响应式即可。
+const themeOverrides = computed(() => themeStore.naiveThemeOverrides);
 </script>

@@ -233,7 +233,7 @@ onUnmounted(() => {
 
 .section-title {
   font-size: 0.75rem;
-  color: #888;
+  color: var(--text-muted);
   margin-bottom: 0.75rem;
   padding-left: 4px;
 }
@@ -253,7 +253,7 @@ onUnmounted(() => {
 }
 
 .event-status-dot {
-  color: #ffdf57;
+  color: var(--status-warning);
   font-size: 12px;
   margin-right: 4px;
 }
@@ -276,14 +276,14 @@ onUnmounted(() => {
   bottom: 24px;
   right: 24px;
   z-index: 1001;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  box-shadow: var(--shadow-md);
 }
 
 /* 移动端遮罩 */
 .mobile-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.4);
+  background: var(--overlay-color);
   z-index: 999;
 }
 

@@ -86,7 +86,7 @@ header h1 {
   margin-top: 0;
 }
 header p {
-  color: #aaa;
+  color: var(--text-muted);
   margin-bottom: 2rem;
 }
 .event-list {
@@ -103,7 +103,7 @@ header p {
   margin: 0 0 0.5rem 0;
 }
 .event-link-card span {
-  color: #aaa;
+  color: var(--text-muted);
 }
 .no-events p {
   line-height: 1.6;

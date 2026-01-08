@@ -102,7 +102,7 @@ onUnmounted(() => {
 .stat-card .label {
   display: block;
   font-size: 0.9rem;
-  color: #aaa;
+  color: var(--text-muted);
   margin-bottom: 0.5rem;
 }
 .stat-card .value {

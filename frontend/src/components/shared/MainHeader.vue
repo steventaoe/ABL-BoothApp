@@ -40,14 +40,14 @@ import { RouterLink } from 'vue-router';
   align-items: center;
   justify-content: space-between;
   padding: 12px 20px;
-  border-bottom: 1px solid #2c2c2c;
-  background-color: #121212;
+  border-bottom: 1px solid var(--border-color);
+  background-color: var(--bg-color);
 }
 
 .app-logo {
   font-size: 18px;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--text-white);
 }
 
 .app-header-nav {
@@ -59,18 +59,18 @@ import { RouterLink } from 'vue-router';
   padding: 6px 12px;
   border-radius: 6px;
   font-size: 14px;
-  color: #c8c8c8;
+  color: var(--secondary-text-color);
   text-decoration: none;
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .nav-link:hover {
-  background-color: #1f1f1f;
-  color: #ffffff;
+  background-color: var(--bg-secondary);
+  color: var(--text-white);
 }
 
 .nav-link--active {
-  background-color: #03dac6;
-  color: #000000;
+  background-color: var(--accent-color);
+  color: var(--bg-color);
 }
 </style>

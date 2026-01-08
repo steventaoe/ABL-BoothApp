@@ -121,13 +121,13 @@ svg { width: 100%; height: auto; }
 .area { fill: url(#revenueGradient); stroke: none; }
 .points circle { fill: var(--accent-color); stroke: var(--card-bg-color); stroke-width: 2; }
 .points text { fill: var(--primary-text-color); font-size: 0.75rem; }
-.grid-lines line { stroke: rgba(255,255,255,0.15); stroke-dasharray: 4 4; stroke-width: 1; }
+.grid-lines line { stroke: var(--border-color-light); stroke-dasharray: 4 4; stroke-width: 1; }
 .y-ticks text { fill: var(--primary-text-color); font-size: 0.75rem; }
 .chart-tooltip {
   position: absolute; transform: translate(-50%, -120%);
-  background: rgba(0, 0, 0, 0.75); color: #fff;
-  padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15);
-  pointer-events: none; white-space: nowrap; box-shadow: 0 8px 20px rgba(0,0,0,0.35);
+  background: var(--tooltip-bg); color: var(--text-white);
+  padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid var(--border-color-light);
+  pointer-events: none; white-space: nowrap; box-shadow: 0 8px 20px var(--shadow-color);
 }
 .tooltip-date { font-size: 0.8rem; margin-bottom: 0.2rem; color: var(--secondary-text-color); }
 .tooltip-value { font-size: 0.95rem; font-weight: 600; color: var(--primary-text-color); }
