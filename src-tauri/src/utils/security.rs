@@ -19,12 +19,10 @@ pub enum AuthError {
 impl IntoResponse for AuthError {
     fn into_response(self) -> Response {
         let (status, error_message) = match self {
-            AuthError::WrongCredentials => (StatusCode::UNAUTHORIZED, "Wrong credentials"),
-            AuthError::TokenCreation => {
-                (StatusCode::INTERNAL_SERVER_ERROR, "Token creation failed")
-            }
-            AuthError::InvalidToken => (StatusCode::UNAUTHORIZED, "Invalid token"),
-            AuthError::Forbidden => (StatusCode::FORBIDDEN, "Insufficient permissions"), // [新增] 403
+            AuthError::WrongCredentials => (StatusCode::UNAUTHORIZED, "密码错误"),
+            AuthError::TokenCreation => (StatusCode::INTERNAL_SERVER_ERROR, "令牌创建失败"),
+            AuthError::InvalidToken => (StatusCode::UNAUTHORIZED, "无效的令牌"),
+            AuthError::Forbidden => (StatusCode::FORBIDDEN, "权限不足"), // [新增] 403
         };
         let body = Json(json!({ "error": error_message }));
         (status, body).into_response()

@@ -64,3 +64,5 @@ coverage/
 # 忽略 Tauri 的构建产物
 src-tauri/gen/android/
 src-tauri/gen/schemas/
+
+secret-key.txt

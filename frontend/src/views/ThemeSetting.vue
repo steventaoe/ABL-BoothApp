@@ -126,11 +126,11 @@ const themeStore = useThemeStore()
 // 预设主色：带名称，悬停时通过 title 展示
 const presetColors = [
   { color: '#62FFF4', label: '默认青' },   // 当前浅色主题默认主色
-  { color: '#FFA6A6', label: '车万红' },   // 科技感蓝色
-  { color: '#E9BA00', label: '奶龙黄' },   // 明亮橙色
-  { color: '#007ACC', label: 'VSCode蓝' },   // 清爽绿色
-  { color: '#8B0012', label: '北大红' },   // 深红色系
-  { color: '#660874', label: '清华紫' },   // 紫色系
+  { color: '#FFA6A6', label: '少女粉' },   
+  { color: '#E9BA00', label: '奶龙黄' },   
+  { color: '#007ACC', label: 'VSCode蓝' },   
+  { color: '#8B0012', label: '北大红' },  
+  { color: '#660874', label: '清华紫' },   
 ]
 
 const isDefaultColor = (swatch) => {

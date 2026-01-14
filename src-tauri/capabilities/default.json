@@ -2,22 +2,54 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Capability for the main window",
-  "windows": ["main"],
+  "windows": [
+    "main"
+  ],
   "permissions": [
     "core:default",
+    "core:event:default",
+    "shell:allow-open",
     "opener:default",
-    "fs:default", 
+    "fs:default",
     "fs:allow-write-text-file",
     "fs:allow-create",
     "fs:allow-write",
     "fs:allow-app-write",
-     "fs:allow-app-write-recursive", 
-     "fs:allow-write-file", "fs:write-all", "fs:write-files",
+    "fs:allow-app-write-recursive",
+    "fs:allow-write-file",
+    "fs:write-all",
+    "fs:write-files",
     "dialog:default",
     "dialog:allow-save",
     {
       "identifier": "fs:scope",
-      "allow": ["**"]
+      "allow": [
+        "**"
+      ]
+    },
+    "http:allow-fetch",
+    "http:allow-fetch-cancel",
+    "http:allow-fetch-read-body",
+    "http:allow-fetch-send",
+    {
+      "identifier": "http:default",
+      "allow": [
+        {
+          "url": "http://localhost:5140/**"
+        },
+        {
+          "url": "http://127.0.0.1:5140/api/**"
+        },
+        {
+          "url": "http://**"
+        },
+        {
+          "url": "https://**"
+        },
+        {
+          "url": "https://api.github.com/repos/*"
+        }
+      ]
     }
   ]
 }

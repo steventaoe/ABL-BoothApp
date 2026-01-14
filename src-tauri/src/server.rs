@@ -8,7 +8,7 @@ use axum::{
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use tower::ServiceBuilder;
-use tower_http::cors::{AllowHeaders, AllowOrigin, CorsLayer};
+use tower_http::cors::{AllowHeaders, AllowOrigin, Any, CorsLayer};
 
 use crate::{api, state::AppState, web};
 
@@ -29,10 +29,11 @@ pub async fn start_server(state: AppState, port: u16) {
                 let path = uri.path();
 
                 if path.starts_with("/api/") {
-                return (
-                        StatusCode::NOT_FOUND, 
-                        axum::Json(serde_json::json!({"error": "API Route Not Found"}))
-                    ).into_response();
+                    return (
+                        StatusCode::NOT_FOUND,
+                        axum::Json(serde_json::json!({"error": "API Route Not Found"})),
+                    )
+                        .into_response();
                 }
 
                 // ---------------------------------------------------------
@@ -94,10 +95,12 @@ pub async fn start_server(state: AppState, port: u16) {
                         Method::OPTIONS,
                     ])
                     .allow_headers(AllowHeaders::list(vec![
-                        header::AUTHORIZATION,
-                        header::CONTENT_TYPE,
-                        header::COOKIE,
-                        header::HeaderName::from_static("x-requested-with"),
+                        header::AUTHORIZATION,                               // 用于 Bearer Token
+                        header::CONTENT_TYPE, // 用于 application/json
+                        header::ACCEPT,       // Axios 发送的 Accept 头
+                        header::COOKIE,       // 用于 Cookie 传输
+                        header::HeaderName::from_static("x-requested-with"), // 某些 WebView 会带
+                        header::HeaderName::from_static("x-custom-header"), // 如果你有自定义头，加在这里
                     ]))
                     .allow_credentials(true),
             ),

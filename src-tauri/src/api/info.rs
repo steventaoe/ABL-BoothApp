@@ -13,7 +13,7 @@ async fn server_info_handler() -> Json<Value> {
     let ip = get_lan_ip();
 
     // 2. 端口配置 (这里硬编码了 5000，建议提取到常量或配置中)
-    let port = 5000;
+    let port = 5140;
 
     // 3. 拼接 Base URL
     let base_url = format!("http://{}:{}", ip, port);

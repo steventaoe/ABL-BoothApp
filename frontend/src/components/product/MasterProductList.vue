@@ -1,25 +1,49 @@
 <template>
   <div class="list-container">
-    <h2>商品列表</h2>
-    <div class="search-box">
-      <n-input
-        v-model:value="store.searchTerm"
-        placeholder="搜索名称或编号..."
-        clearable
-        style="max-width: 280px;"
-      />
-      <n-select
-        v-model:value="selectedCategory"
-        :options="categoryOptions.map(c => ({ label: c, value: c }))"
-        clearable
-        placeholder="全部分类"
-        class="category-select"
-        style="min-width: 160px;"
-      />
+    <div class="section-header" @click="isListCollapsed = !isListCollapsed">
+      <h2>商品列表</h2>
+      <n-button text class="toggle-btn">
+        {{ isListCollapsed ? '展开' : '折叠' }}
+      </n-button>
     </div>
+    <transition name="expand">
+      <div v-show="!isListCollapsed" class="section-container">
+        <div class="search-section">
+          <div class="search-header">
+            <h3>搜索和过滤</h3>
+            <p class="search-hint">输入关键词快速查找商品，或按分类筛选</p>
+          </div>
+          <div class="search-box">
+            <n-input
+              v-model:value="store.searchTerm"
+              placeholder="搜索商品名称或编号..."
+              clearable
+              class="search-input"
+            />
+            <n-select
+              v-model:value="selectedCategory"
+              :options="categoryOptions.map(c => ({ label: c, value: c }))"
+              clearable
+              placeholder="选择分类"
+              class="category-select"
+            />
+            <n-button tertiary @click="handleClearFilters" v-if="store.searchTerm || selectedCategory">
+              清空
+            </n-button>
+          </div>
+        </div>
+        <div class="filter-options">
+          <n-checkbox 
+            v-model:checked="store.showInactive"
+            @update:checked="store.fetchMasterProducts()"
+            class="show-inactive-checkbox"
+          >
+            <span class="checkbox-label">显示已停用的商品</span>
+          </n-checkbox>
+        </div>
     <n-spin :show="store.isLoading">
       <div v-if="store.error" class="error-message">{{ store.error }}</div>
-      <n-card v-else-if="filteredProducts.length" embedded>
+      <div v-else-if="filteredProducts.length" class="table-wrapper">
         <table class="product-table">
           <thead>
             <tr>
@@ -49,7 +73,7 @@
               <td>{{ product.name }}</td>
               <td>¥{{ product.default_price.toFixed(2) }}</td>
               <td>{{ product.category || '未分类' }}</td>
-              <td>
+              <td class="action-cell">
                 <n-button size="small" tertiary @click="$emit('edit', product)">编辑</n-button>
                 <n-button 
                   size="small"
@@ -64,23 +88,32 @@
             </tr>
           </tbody>
         </table>
-      </n-card>
+      </div>
       <p v-else-if="store.searchTerm && !store.filteredProducts.length">
         没有找到匹配 "<strong>{{ store.searchTerm }}</strong>" 的商品。
       </p>
       <p v-else>商品库为空。</p>
     </n-spin>
+      </div>
+    </transition>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useProductStore } from '@/stores/productStore';
-import { NInput, NSelect, NImage, NButton, NSpin, NCard } from 'naive-ui';
+import { NInput, NSelect, NImage, NButton, NSpin, NCard, NCheckbox } from 'naive-ui';
 const store = useProductStore();
 defineEmits(['edit', 'toggleStatus']);
 
+const isListCollapsed = ref(false);
 const selectedCategory = ref('');
+
+function handleClearFilters() {
+  store.searchTerm = '';
+  selectedCategory.value = '';
+}
+
 const categoryOptions = computed(() => {
   // 防止 products 未定义时报错
   const cats = (store.masterProducts || [])
@@ -112,34 +145,122 @@ onMounted(async() => {
 </script>
 
 <style scoped>
-.search-box {
-  display: flex;
-  align-items: center;
-  flex-wrap: nowrap; /* 不换行 */
-  gap: 12px;
-  overflow-x: auto; /* 窄屏时允许横向滚动而非换行 */
+.list-container {
+  margin-bottom: 2rem;
 }
-.list-header {
+
+.section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  cursor: pointer;
+  user-select: none;
+  padding: 0.75rem 1rem;
+  background: var(--card-bg-color);
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  margin-bottom: 0.5rem;
+}
+
+.section-header:hover {
+  background: var(--hover-bg-color, var(--card-bg-color));
+  border-color: var(--accent-color);
+}
+
+.section-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: var(--accent-color);
+  font-weight: 600;
+}
+
+.toggle-btn {
+  font-size: 0.9rem;
+  padding: 0.25rem 0.75rem;
+  min-width: auto;
+  color: var(--accent-color);
+}
+
+.expand-enter-active,
+.expand-leave-active {
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.expand-enter-from,
+.expand-leave-to {
+  opacity: 0;
+  max-height: 0;
+}
+
+.expand-enter-to,
+.expand-leave-from {
+  opacity: 1;
+  max-height: 2000px;
+}
+
+.section-container {
+  background: var(--card-bg-color);
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.search-section {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.search-header {
   margin-bottom: 1rem;
 }
-.list-header h2 {
+
+.search-header h3 {
   margin: 0;
+  color: var(--accent-color);
+  font-size: 1rem;
+  font-weight: 600;
 }
-.search-box input {
-  background-color: var(--card-bg-color);
-  border: 1px solid var(--border-color);
+
+.search-hint {
+  margin: 0.5rem 0 0 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.search-input {
+  flex: 1;
+  min-width: 220px;
+}
+
+.category-select {
+  min-width: 150px;
+}
+
+.filter-options {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.show-inactive-checkbox {
+  display: flex;
+  align-items: center;
+}
+
+.checkbox-label {
   color: var(--primary-text-color);
-  padding: 8px 12px;
-  border-radius: 4px;
-  min-width: 250px;
-}
-/* 调整 Naive 选择器与输入的间距对齐 */
-.search-box :deep(.n-input),
-.search-box :deep(.n-select) {
-  margin-right: 0; /* 交给 gap 控制间距 */
+  font-size: 0.9rem;
+  margin-left: 0.5rem;
 }
 
 .action-btn {
@@ -171,29 +292,37 @@ onMounted(async() => {
   background-color: rgba(244, 67, 54, 0.1); /* 淡红色背景 */
   border-color: rgba(244, 67, 54, 0.4);
 }
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 .product-table {
   width: 100%;
-  margin-top: 2rem;
-  border-collapse: collapse; /* 移除单元格间距 */
+  margin-top: 0;
+  border-collapse: collapse;
   border-spacing: 0;
   text-align: left;
-  font-size: 0.9rem; /* 稍微缩小行内字体 */
+  font-size: 0.9rem;
+  min-width: 700px; /* 确保表格不会被挤压 */
 }
 
 /* 表头样式 */
 .product-table th {
-  padding: 8px 12px; /* 缩小行高 */
-  background-color: var(--card-bg-color); /* 使用卡片背景色 */
+  padding: 12px 16px;
+  background-color: var(--card-bg-color);
   color: var(--primary-text-color);
   font-weight: 600;
-  border-bottom: 2px solid var(--accent-color); /* 用主题色作为高亮下边框 */
+  border-bottom: 2px solid var(--accent-color);
+  white-space: nowrap;
 }
 
 /* 数据单元格样式 */
 .product-table td {
-  padding: 8px 12px; /* 缩小行高 */
-  border-bottom: 1px solid var(--border-color); /* 使用柔和的水平分隔线 */
-  color: var(--secondary-text-color); /* 数据文字颜色稍暗，以突出标题 */
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--secondary-text-color);
   vertical-align: middle;
 }
 
@@ -203,7 +332,7 @@ onMounted(async() => {
 }
 
 .product-table tbody tr:hover {
-  background-color: var(--accent-color-light); /* 鼠标悬浮时显示淡淡的主题色背景 */
+  background-color: var(--accent-color-light);
 }
 
 /* --- 特定列的微调 --- */
@@ -217,8 +346,12 @@ onMounted(async() => {
 /* 操作列 */
 .product-table th:last-child,
 .product-table td:last-child {
-  text-align: right; /* 让操作按钮靠右对齐 */
+  text-align: right;
   padding-right: 0;
+}
+
+.action-cell {
+  white-space: nowrap;
 }
 /* 图片要缩放和裁剪到列标准宽度 */
 .preview-img {
@@ -260,7 +393,144 @@ onMounted(async() => {
   border-color: var(--success-color);
   color: var(--success-color);
 }
-.btn-success:hover {
+.
+
+/* 响应式布局 */
+@media (max-width: 768px) {
+  .section-container {
+    padding: 1rem;
+  }
+
+  .search-section {
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+  }
+
+  .search-header h3 {
+    font-size: 0.95rem;
+  }
+
+  .search-hint {
+    font-size: 0.8rem;
+  }
+
+  .search-box {
+    gap: 8px;
+  }
+
+  .search-input {
+    min-width: 180px;
+  }
+
+  .category-select {
+    min-width: 120px;
+  }
+
+  .product-table {
+    font-size: 0.85rem;
+    min-width: 650px;
+  }
+
+  .product-table th,
+  .product-table td {
+    padding: 10px 12px;
+  }
+
+  .preview-img {
+    width: 60px;
+    height: 60px;
+  }
+
+  .no-img {
+    width: 60px;
+    height: 60px;
+    line-height: 60px;
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .list-container {
+    margin-bottom: 1.5rem;
+  }
+
+  .section-header {
+    padding: 0.6rem 0.75rem;
+  }
+
+  .section-header h2 {
+    font-size: 1.1rem;
+  }
+
+  .section-container {
+    padding: 0.75rem;
+  }
+
+  .search-section {
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.75rem;
+  }
+
+  .search-header h3 {
+    font-size: 0.9rem;
+  }
+
+  .search-hint {
+    font-size: 0.75rem;
+  }
+
+  .search-box {
+    gap: 6px;
+  }
+
+  .search-input {
+    min-width: 150px;
+  }
+
+  .category-select {
+    min-width: 100px;
+  }
+
+  .filter-options {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+  }
+
+  .checkbox-label {
+    font-size: 0.85rem;
+  }
+
+  .product-table {
+    font-size: 0.75rem;
+    min-width: 600px;
+  }
+
+  .product-table th,
+  .product-table td {
+    padding: 8px 10px;
+  }
+
+  .product-table th {
+    font-size: 0.7rem;
+  }
+
+  .preview-img {
+    width: 50px;
+    height: 50px;
+  }
+
+  .no-img {
+    width: 50px;
+    height: 50px;
+    line-height: 50px;
+    font-size: 0.7rem;
+  }
+
+  .action-cell :deep(.n-button) {
+    font-size: 0.75rem;
+    padding: 4px 8px;
+  }
+}btn-success:hover {
   background-color: var(--success-color);
   color: var(--text-white);
 }
@@ -272,5 +542,4 @@ onMounted(async() => {
   background: var(--card-bg-color);
   color: var(--primary-text-color);
   min-width: 120px;
-}
-</style>
+}</style>

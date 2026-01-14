@@ -1,7 +1,14 @@
 <template>
-  <div class="form-container">
-    <h3>创建新展会</h3>
-    <n-form @submit.prevent class="two-column-form">
+  <section class="form-container">
+    <div class="section-header" @click="isCollapsed = !isCollapsed">
+      <h2>创建新展会</h2>
+      <n-button text class="toggle-btn">
+        {{ isCollapsed ? '展开' : '折叠' }}
+      </n-button>
+    </div>
+    <transition name="expand">
+      <div v-show="!isCollapsed" class="section-container">
+        <n-form @submit.prevent class="two-column-form">
       <div class="form-group">
         <label for="name">展会名称:</label>
         <n-input id="name" v-model:value="formData.name" placeholder="例如：COMICUP 31" />
@@ -33,7 +40,9 @@
         <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
       </div>
     </n-form>
-  </div>
+      </div>
+    </transition>
+  </section>
 </template>
 
 <script setup>
@@ -45,6 +54,8 @@ import { NForm, NInput, NDatePicker, NButton } from 'naive-ui';
 const store = useEventStore();
 const isSubmitting = ref(false);
 const errorMessage = ref('');
+
+const isCollapsed = ref(false);
 
 const formData = ref({
   name: '',
@@ -92,12 +103,65 @@ async function handleSubmit() {
 
 <style scoped>
 .form-container {
+  margin-bottom: 2rem;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  padding: 0.75rem 1rem;
+  background: var(--card-bg-color);
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  margin-bottom: 0.5rem;
+}
+
+.section-header:hover {
+  background: var(--hover-bg-color, var(--card-bg-color));
+  border-color: var(--accent-color);
+}
+
+.section-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: var(--accent-color);
+  font-weight: 600;
+}
+
+.toggle-btn {
+  font-size: 0.9rem;
+  padding: 0.25rem 0.75rem;
+  min-width: auto;
+  color: var(--accent-color);
+}
+
+.expand-enter-active,
+.expand-leave-active {
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.expand-enter-from,
+.expand-leave-to {
+  max-height: 0;
+  opacity: 0;
+}
+
+.expand-enter-to,
+.expand-leave-from {
+  max-height: 2000px;
+  opacity: 1;
+}
+
+.section-container {
   background-color: var(--card-bg-color);
-  border: 1px solid var(--border-color);
-  padding: 1rem;
-  border-radius: 6px;
-  margin-bottom: 1rem;
-  font-size: 0.96rem;
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  padding: 1.5rem;
 }
 
 /* 【新增】使用 CSS Grid 实现两列布局 */
@@ -106,7 +170,8 @@ async function handleSubmit() {
   /* 创建两列，每列占据相等的剩余空间 */
   grid-template-columns: 1fr 1fr;
   /* 定义列间距和行间距 */
-  gap: 0.6rem 1rem; 
+  gap: 0.6rem 1rem;
+  padding: 0;
 }
 
 .full-width {
@@ -116,12 +181,15 @@ async function handleSubmit() {
 
 .form-group {
   margin-bottom: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 label {
   display: block; /* 确保 label 独占一行 */
   margin-bottom: 0.3rem;
   font-size: 0.95em;
+  font-weight: 500;
 }
 
 input[type="text"],
@@ -137,9 +205,30 @@ input[type="date"] {
   box-sizing: border-box;
 }
 
+/* Naive UI 组件样式 */
+:deep(.n-input) {
+  width: 100%;
+}
+
+:deep(.n-date-picker) {
+  width: 100%;
+}
+
+:deep(.n-input__input-el) {
+  width: 100%;
+}
+
+.form-actions :deep(.n-button) {
+  min-width: 80px;
+}
+
 /* 【新增】提交按钮和错误信息的容器 */
 .form-actions {
   margin-top: 0.5rem; /* 与上方元素留出一些间距 */
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
 }
 
 button,
@@ -154,11 +243,82 @@ button,
   font-size: 0.95em;
   /* 确保错误信息在按钮下方 */
   width: 100%; 
+  color: var(--error-color);
 }
 
 button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* 平板适配 (768px 以下) */
+@media (max-width: 768px) {
+  .section-container {
+    padding: 1rem;
+  }
+
+  .two-column-form {
+    grid-template-columns: 1fr;
+    gap: 0.8rem;
+  }
+
+  label {
+    font-size: 0.9rem;
+    margin-bottom: 0.4rem;
+  }
+
+  input[type="text"],
+  input[type="date"] {
+    padding: 8px;
+    font-size: 16px; /* 防止移动设备自动缩放 */
+    height: 36px;
+  }
+}
+
+/* 手机适配 (480px 以下) */
+@media (max-width: 480px) {
+  .section-container {
+    padding: 1rem;
+  }
+
+  .two-column-form {
+    gap: 0.6rem;
+  }
+
+  .form-group {
+    margin-bottom: 0;
+  }
+
+  label {
+    font-size: 0.85rem;
+    margin-bottom: 0.3rem;
+    font-weight: 500;
+  }
+
+  input[type="text"],
+  input[type="date"] {
+    padding: 8px;
+    font-size: 16px;
+    height: 40px;
+    border-radius: 3px;
+  }
+
+  .form-actions {
+    margin-top: 1rem;
+    gap: 0.5rem;
+  }
+
+  .error-message {
+    font-size: 0.8rem;
+    margin-top: 0.5rem;
+  }
+
+  button,
+  .btn {
+    padding: 8px 12px;
+    font-size: 0.9rem;
+    flex-grow: 1;
+  }
 }
 
 /* ImageUploader 的内部样式由其自身 scoped CSS 控制，这里无需再写 */

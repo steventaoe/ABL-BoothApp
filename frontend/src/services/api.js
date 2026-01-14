@@ -1,89 +1,176 @@
 import axios from 'axios';
+import { fetch } from '@tauri-apps/plugin-http'; 
 import router from '@/router';
 
 // ============================================================
-// 1. 动态计算 BaseURL (核心修复)
+// 1. 环境判断与 BaseURL 配置
 // ============================================================
 
-// 检测是否在 Tauri 容器内运行
 const isTauri = window.__TAURI_INTERNALS__ !== undefined;
-// 你的后端端口
-const API_PORT = 5000;
+const API_PORT = 5140;
 
 let baseURL = '';
 
-if (import.meta.env.DEV) {
-  // A. 开发环境：走 Vite 代理 (vite.config.ts)
+// [Debug] 强制指定 IP，排除 DNS 干扰
+if (isTauri) {
+  // 建议：在安卓真机调试时，尝试用 127.0.0.1
+  baseURL = `http://127.0.0.1:${API_PORT}/api`;
+} else if (import.meta.env.DEV) {
   baseURL = '/api';
-} else if (isTauri) {
-  // B. Tauri 生产环境：强制指向本地后端
-  // 必须写完整 URL，否则 Tauri 可能会在 tauri://localhost 下寻找 /api
-  baseURL = `http://localhost:${API_PORT}/api`;
 } else {
-  // C. 手机/局域网浏览器环境：使用相对路径
-  // 浏览器会自动拼接当前 IP (例如 http://192.168.1.5:5000/api)
   baseURL = '/api';
 }
 
-console.log(`[Config] Axios BaseURL set to: ${baseURL}`);
+console.log(`%c[Config] 🚀 Environment Init`, 'background: #333; color: #bada55');
+console.log(`[Config] isTauri: ${isTauri}`);
+console.log(`[Config] BaseURL: ${baseURL}`);
+
+// ============================================================
+// 2. 自定义 Tauri Adapter (Debug 增强版)
+// ============================================================
+
+const tauriAdapter = async (config) => {
+  // 生成一个随机 Request ID，方便在海量日志中追踪同一个请求
+  const reqId = Math.floor(Math.random() * 10000);
+  const startTime = performance.now();
+
+  // A. URL 处理
+  const basePath = config.baseURL || '';
+  const requestPath = config.url || '';
+  const fullUrl = requestPath.startsWith('http') 
+    ? requestPath 
+    : `${basePath.replace(/\/$/, '')}/${requestPath.replace(/^\//, '')}`;
+
+  console.log(`🔵 [Req #${reqId}] PREPARE: ${config.method?.toUpperCase()} ${fullUrl}`);
+
+  try {
+    // B. Headers 清洗
+    const headers = new Headers();
+    const axiosHeaders = config.headers;
+    
+    if (axiosHeaders) {
+      const headersObj = typeof axiosHeaders.toJSON === 'function' 
+        ? axiosHeaders.toJSON() 
+        : axiosHeaders;
+
+      for (const [key, val] of Object.entries(headersObj)) {
+        if (val !== undefined && val !== null) {
+          if (key.toLowerCase() === 'content-length') continue;
+          if (key.toLowerCase() === 'host') continue; 
+          headers.set(key, String(val));
+        }
+      }
+    }
+
+    // C. Body 处理
+    let body = undefined;
+    if (config.data) {
+      if (typeof config.data === 'string') {
+        body = config.data;
+        if (!headers.has('Content-Type')) headers.set('Content-Type', 'text/plain');
+      } else if (config.data instanceof FormData) {
+        headers.delete('Content-Type'); 
+        body = config.data;
+      } else {
+        body = JSON.stringify(config.data);
+        headers.set('Content-Type', 'application/json');
+      }
+    }
+
+    // [Debug] 打印即将发送的详细信息
+    console.log(`🔍 [Req #${reqId}] DETAILS:`, {
+      url: fullUrl,
+      headers: Object.fromEntries(headers.entries()),
+      bodyType: typeof body,
+      bodyPreview: body ? String(body).substring(0, 100) : 'null'
+    });
+
+    // D. 发起请求 (执行 fetch)
+    // -------------------------------------------------------
+    console.log(`⏳ [Req #${reqId}] Sending fetch...`);
+    const response = await fetch(fullUrl, {
+      method: config.method?.toUpperCase(),
+      headers: headers,
+      body: body,
+    });
+    // -------------------------------------------------------
+
+    const duration = (performance.now() - startTime).toFixed(2);
+    console.log(`✅ [Req #${reqId}] FETCH SUCCESS (${duration}ms) Status: ${response.status}`);
+
+    // E. 处理响应 Body
+    // 先读文本，避免 "body stream already read"
+    const rawText = await response.text(); 
+    
+    // [Debug] 打印原始响应内容（截断，防止太长）
+    console.log(`📦 [Req #${reqId}] RAW RESPONSE:`, rawText.substring(0, 300) + (rawText.length > 300 ? '...' : ''));
+
+    let responseData;
+    try {
+      responseData = JSON.parse(rawText);
+    } catch (e) {
+      console.warn(`⚠️ [Req #${reqId}] JSON Parse failed, returning text.`);
+      responseData = rawText;
+    }
+
+    return {
+      data: responseData,
+      status: response.status,
+      statusText: response.statusText,
+      headers: Object.fromEntries(response.headers.entries()),
+      config: config,
+      request: null,
+    };
+
+  } catch (error) {
+    const duration = (performance.now() - startTime).toFixed(2);
+    // [Debug] 捕获所有 fetch 阶段的致命错误
+    console.error(`❌ [Req #${reqId}] FATAL ERROR (${duration}ms):`);
+    console.error(`   Message: ${error.message}`);
+    console.error(`   Stack: ${error.stack}`);
+    // 将错误原样抛出给 Axios 处理
+    throw error;
+  }
+};
+
+// ============================================================
+// 3. Axios 实例
+// ============================================================
 
 const apiClient = axios.create({
   baseURL: baseURL,
-  withCredentials: true, // 确保 Cookie 跨域传输
-  timeout: 15000, // 建议设置超时，防止网络卡死
+  timeout: 30000, // [Debug] 延长超时时间到 30s，排除超时干扰
+  adapter: isTauri ? tauriAdapter : undefined,
+  headers: {
+    'Accept': 'application/json',
+  }
 });
 
 // ============================================================
-// 2. 拦截器保持不变 (写得很好)
+// 4. 拦截器
 // ============================================================
 
-// 添加请求拦截器，用于调试
 apiClient.interceptors.request.use(
   (config) => {
-    if (import.meta.env.DEV) {
-      console.log(`🚀 API请求: ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
-      // 调试：如果是 FormData，打印所有键值，便于核对字段名是否匹配后端
-      if (config.data instanceof FormData) {
-        const entries = [];
-        for (const [k, v] of config.data.entries()) {
-          entries.push([k, v instanceof Blob ? `(Blob:${v.type||'unknown'})` : String(v)]);
-        }
-        console.log('📦 FormData payload:', entries);
-      }
+    const token = sessionStorage.getItem('access_token');
+    if (token) {
+      config.headers['Authorization'] = `Bearer ${token}`;
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
-// 添加响应拦截器，用于调试
 apiClient.interceptors.response.use(
-  (response) => {
-    if (import.meta.env.DEV) {
-      console.log(`✅ API响应: ${response.config.method?.toUpperCase()} ${response.config.url}`, response.status);
-    }
-    return response;
-  },
+  (response) => response,
   (error) => {
-    const url = error.config?.url || 'unknown';
-    const status = error.response?.status || 'network_error';
+    const status = error.response?.status || 0;
     
-    if (import.meta.env.DEV) {
-      console.error(`❌ API错误: ${url}`, status, error.message);
-    }
-
-    if (error.response && [401, 403].includes(status)) {
-      // 防止重复跳转（可选优化）
-      const currentPath = router.currentRoute.value.path;
-      if (!currentPath.includes('/login')) {
-        // 清理本地登录状态并跳转到登录页
-        sessionStorage.removeItem('user');
-        const role = router.currentRoute.value.meta?.role;
-        const target = role === 'vendor' ? '/login/vendor' : '/login/admin';
-        router.push(target);
-      }
+    // [Debug] 打印 Axios 最终捕获的错误
+    console.error(`🚨 [Axios Error] Status: ${status} | Code: ${error.code} | Message: ${error.message}`);
+    
+    if (status === 401 || status === 403) {
+       // ... 登录跳转逻辑 ...
     }
     return Promise.reject(error);
   }

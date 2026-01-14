@@ -3,13 +3,19 @@
     <header class="page-header">
       <h1>商品管理</h1>
       <p>为当前展会添加、修改和移除上架商品。</p>
-      <RouterLink to="/admin" class="btn-back">
-        <n-button quaternary size="small">&larr; 返回展会列表</n-button>
-      </RouterLink>
     </header>
 
     <main>
-      <n-card class="form-container" title="上架新商品" size="small">
+      <!-- 上架新商品区块 -->
+      <section class="form-section">
+        <div class="section-header" @click="isFormExpanded = !isFormExpanded">
+          <h2>上架新商品</h2>
+          <n-button text class="toggle-btn">
+            {{ isFormExpanded ? '折叠' : '展开' }}
+          </n-button>
+        </div>
+        <transition name="expand">
+          <div v-show="isFormExpanded" class="section-container">
         <div class="search-filters">
           <n-input
             v-model:value="searchQuery"
@@ -40,7 +46,18 @@
               :class="{ selected: addProductData.product_code === product.product_code }"
               @click="selectProduct(product)"
             >
-              <n-image :src="product.image_url" :alt="product.name" class="preview-item-img" preview-disabled />
+              <div class="preview-item-img-container">
+                <n-image 
+                  v-if="product.image_url" 
+                  :src="product.image_url" 
+                  :alt="product.name" 
+                  class="preview-item-img" 
+                  preview-disabled 
+                />
+                <div v-else class="preview-item-img-placeholder">
+                  <span>{{ getProductLabel(product.name) }}</span>
+                </div>
+              </div>
               <div class="preview-item-info">
                 <span class="preview-item-name">{{ product.name }}</span>
                 <span class="preview-item-code">{{ product.product_code }}</span>
@@ -60,10 +77,22 @@
           </n-button>
         </form>
         <p v-if="addError" class="error-message">{{ addError }}</p>
-      </n-card>
+      </div>
+      </transition>
+      </section>
 
-      <div v-if="eventDetailStore.isLoading" class="loading-message">正在加载商品列表...</div>
-      <n-card v-else-if="eventDetailStore.products.length" size="small">
+      <!-- 商品列表区块 -->
+      <section class="list-section">
+        <div class="section-header" @click="isListExpanded = !isListExpanded">
+          <h2>已上架商品</h2>
+          <n-button text class="toggle-btn">
+            {{ isListExpanded ? '折叠' : '展开' }}
+          </n-button>
+        </div>
+        <transition name="expand">
+          <div v-show="isListExpanded" class="section-container">
+            <div v-if="eventDetailStore.isLoading" class="loading-message">正在加载商品列表...</div>
+            <div v-else-if="eventDetailStore.products.length" class="table-wrapper">
         <table class="product-table">
           <thead>
             <tr>
@@ -79,8 +108,12 @@
           <tbody>
             <tr v-for="product in eventDetailStore.products" :key="product.id">
               <td>
-                <n-image v-if="product.image_url" :src="product.image_url" :alt="product.name" class="preview-img" preview-disabled />
-                <span v-else class="no-img">无图</span>
+                <div v-if="product.image_url" class="preview-img-container">
+                  <n-image :src="product.image_url" :alt="product.name" class="preview-img" preview-disabled />
+                </div>
+                <div v-else class="preview-img-placeholder">
+                  <span>{{ getProductLabel(product.name) }}</span>
+                </div>
               </td>
               <td>{{ product.product_code }}</td>
               <td>{{ product.name }}</td>
@@ -96,8 +129,11 @@
             </tr>
           </tbody>
         </table>
-      </n-card>
+      </div>
       <p v-else>该展会还未上架任何商品。</p>
+          </div>
+        </transition>
+      </section>
     </main>
 
     <AppModal :show="isEditModalVisible" @close="closeEditModal">
@@ -133,16 +169,19 @@ import { RouterLink } from 'vue-router';
 import { useEventDetailStore } from '@/stores/eventDetailStore';
 import { useProductStore } from '@/stores/productStore';
 import AppModal from '@/components/shared/AppModal.vue';
-import { NCard, NInput, NSelect, NImage, NInputNumber, NButton, NSpace } from 'naive-ui';
+import { NCard, NInput, NSelect, NImage, NInputNumber, NButton, NSpace, useDialog } from 'naive-ui';
 
 const props = defineProps({ id: { type: String, required: true } });
 
 const eventDetailStore = useEventDetailStore();
 const productStore = useProductStore();
+const dialog = useDialog();
 
 const searchQuery = ref('');
 const stockInputRef = ref(null);
 const selectedCategory = ref(null);
+const isFormExpanded = ref(true);
+const isListExpanded = ref(true);
 
 const categoryOptions = computed(() => {
   const cats = (productStore.masterProducts || [])
@@ -197,6 +236,7 @@ async function handleAddProduct() {
       delete dataToSend.price;
     }
     await eventDetailStore.addProductToEvent(props.id, dataToSend);
+    await eventDetailStore.fetchProductsForEvent(props.id);
     addProductData.value = { product_code: '', initial_stock: null, price: null };
     searchQuery.value = '';
   } catch (error) {
@@ -237,13 +277,24 @@ async function handleUpdate() {
 }
 
 async function handleDelete(product) {
-  if (window.confirm(`确定要从该展会下架 "${product.name}" 吗？`)) {
-    try {
-      await eventDetailStore.deleteEventProduct(product.id);
-    } catch (error) {
-      alert(error.message);
+  dialog.warning({
+    title: '确认下架',
+    content: `确定要从该展会下架 "${product.name}" 吗？此操作不可恢复。`,
+    positiveText: '确认下架',
+    negativeText: '取消',
+    async onPositiveClick() {
+      try {
+        await eventDetailStore.deleteEventProduct(product.id);
+        await eventDetailStore.fetchProductsForEvent(props.id);
+      } catch (error) {
+        dialog.error({
+          title: '删除失败',
+          content: error.message || '无法下架商品，请稍后重试',
+          positiveText: '知道了'
+        });
+      }
     }
-  }
+  });
 }
 
 onMounted(() => {
@@ -254,6 +305,13 @@ onMounted(() => {
 onUnmounted(() => {
   eventDetailStore.resetStore();
 });
+
+// 获取商品名称的前几个字作为占位符
+function getProductLabel(name) {
+  if (!name) return '无图';
+  // 中文字符通常一个字占一个字符宽度，英文需要2-3个，这里简单取前3个字符
+  return name.substring(0, 3);
+}
 </script>
 
 <style scoped>
@@ -271,12 +329,78 @@ onUnmounted(() => {
   right: 0;
 }
 
-.form-container {
-  background-color: var(--card-bg-color);
-  border: 1px solid var(--border-color);
-  padding: 1.0rem;
+/* 通用区块样式 */
+.form-section,
+.list-section {
+  margin-bottom: 2rem;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  padding: 0.75rem 1rem;
+  background: var(--card-bg-color);
+  border: 2px solid var(--border-color);
   border-radius: 8px;
-  margin-bottom: 1rem;
+  transition: all 0.2s ease;
+  margin-bottom: 0.5rem;
+}
+
+.section-header:hover {
+  background: var(--hover-bg-color, var(--card-bg-color));
+  border-color: var(--accent-color);
+}
+
+.section-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: var(--accent-color);
+  font-weight: 600;
+}
+
+.toggle-btn {
+  font-size: 0.9rem;
+  padding: 0.25rem 0.75rem;
+  min-width: auto;
+  color: var(--accent-color);
+}
+
+/* 展开/折叠动画 */
+.expand-enter-active,
+.expand-leave-active {
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.expand-enter-from,
+.expand-leave-to {
+  opacity: 0;
+  max-height: 0;
+}
+
+.expand-enter-to,
+.expand-leave-from {
+  opacity: 1;
+  max-height: 2000px;
+}
+
+.section-container {
+  background: var(--card-bg-color);
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  padding: 1.5rem;
+  overflow: hidden;
+}
+
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
 }
 
 .add-product-form {
@@ -290,7 +414,7 @@ onUnmounted(() => {
 /* --- 表格样式 --- */
 .product-table {
   width: 100%;
-  margin-top: 0.5rem;
+  margin: 0;
   border-collapse: collapse;
   border-spacing: 0;
   text-align: left;
@@ -321,6 +445,29 @@ onUnmounted(() => {
   width: 50px;
   height: 50px;
   object-fit: cover;
+
+.preview-img-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.preview-img-placeholder {
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--accent-color), var(--accent-color-light, var(--accent-color)));
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  color: var(--text-white);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-align: center;
+  overflow: hidden;
+}
+
   border-radius: 4px;
   border: 1px solid var(--border-color);
   vertical-align: middle;
@@ -409,7 +556,29 @@ onUnmounted(() => {
   border: 1px solid transparent;
   border-radius: 4px;
   cursor: pointer;
-  transition: background-color 0.2s, border-color 0.2s;
+ 
+
+.preview-item-img-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.5rem;
+}
+
+.preview-item-img-placeholder {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--accent-color), var(--accent-color-light, var(--accent-color)));
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  color: var(--text-white);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: center;
+} transition: background-color 0.2s, border-color 0.2s;
   background-color: var(--card-bg-color);
 }
 .preview-item:hover {
@@ -480,5 +649,207 @@ onUnmounted(() => {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+/* 响应式布局 */
+@media (max-width: 768px) {
+  main {
+    padding: 0;
+  }
+
+  .page-header {
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.75rem;
+  }
+
+  .page-header h1 {
+    font-size: 1.3rem;
+  }
+
+  .page-header p {
+    font-size: 0.9rem;
+  }
+
+  .section-container {
+    padding: 1rem;
+  }
+
+  .search-filters {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .search-input,
+  .category-select {
+    width: 100%;
+    min-width: auto;
+  }
+
+  .product-preview-container {
+    max-height: 240px;
+  }
+
+  .product-preview-list {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 0.4rem;
+  }
+
+  .preview-item-img {
+    width: 50px;
+    height: 50px;
+  }
+
+  .preview-item-img-placeholder {
+    width: 50px;
+    height: 50px;
+    font-size: 0.75rem;
+  }
+
+  .preview-item {
+    padding: 0.3rem;
+  }
+
+  .preview-item-img {
+    width: 50px;
+    height: 50px;
+  }
+
+  .preview-item-name {
+    font-size: 0.8rem;
+    width: 90px;
+  }
+
+  .preview-item-code,
+  .preview-item-price {
+    font-size: 0.7rem;
+  }
+
+  .add-product-form {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .add-product-form > * {
+    width: 100%;
+  }
+
+  .product-table {
+    font-size: 0.85rem;
+    min-width: 600px;
+  }
+
+  .product-table th,
+  .product-table td {
+    padding: 8px;
+  }
+
+  .preview-img,
+  .no-img {
+    width: 40px;
+    height: 40px;
+    line-height: 40px;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-header {
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .page-header h1 {
+    font-size: 1.1rem;
+  }
+
+  .page-header p {
+    font-size: 0.8rem;
+  }
+
+  .section-header {
+    padding: 0.6rem 0.75rem;
+  }
+
+  .section-header h2 {
+    font-size: 1.1rem;
+  }
+
+  .section-container {
+    padding: 0.75rem;
+  }
+
+  .search-filters {
+    gap: 0.5rem;
+  }
+
+  .product-preview-container {
+    max-height: 200px;
+    padding: 0.4rem;
+  }
+
+  .product-preview-list {
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 0.3rem;
+  }
+
+  .preview-item {
+    padding: 0.25rem;
+  }
+
+  .preview-item-img {
+    width: 40px;
+    height: 40px;
+  }
+
+  .preview-item-name {
+    font-size: 0.75rem;
+   
+
+  .preview-item-img {
+    width: 40px;
+    height: 40px;
+  }
+
+  .preview-item-img-placeholder {
+    width: 40px;
+    height: 40px;
+    font-size: 0.7rem;
+  } width: 70px;
+  }
+
+  .preview-item-code,
+  .preview-item-price {
+    font-size: 0.65rem;
+  }
+
+  .add-product-form {
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+  }
+
+  .product-table {
+    font-size: 0.75rem;
+    min-width: 550px;
+  }
+
+  .product-table th,
+  .product-table td {
+    padding: 6px 4px;
+  }
+
+  .product-table th {
+    font-size: 0.7rem;
+  }
+
+  .preview-img,
+  .no-img {
+    width: 35px;
+    height: 35px;
+    line-height: 35px;
+    font-size: 0.7rem;
+  }
+
+  .edit-form .form-group {
+    margin-bottom: 0.75rem;
+  }
 }
 </style>

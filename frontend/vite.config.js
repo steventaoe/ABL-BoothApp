@@ -10,20 +10,25 @@ export default defineConfig({
     }
   },
   server: {
+    //host : '0.0.0.0',
     proxy: {
       // 代理到新的静态文件路径
       '/static': {
-        target: 'http://127.0.0.1:5000',
+        target: 'http://127.0.0.1:5140',
         changeOrigin: true,
       },
       '/uploads': {
-        target: 'http://127.0.0.1:5000',
+        target: 'http://127.0.0.1:5140',
         changeOrigin: true,
       },
       '/api': {
-        target: 'http://127.0.0.1:5000',
+        target: 'http://127.0.0.1:5140',
         changeOrigin: true,
       }
-    }
+    },
+    port: 5173,
+    strictPort: true,
+
+    host: true, // 加上这一行 在手机端测试时需要
   }
 })

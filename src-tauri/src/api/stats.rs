@@ -13,10 +13,8 @@ use std::collections::HashMap;
 
 use crate::{db::models::Event, state::AppState, utils::security::Claims};
 
-use rust_xlsxwriter::{
-    Color, Format, FormatAlign, FormatBorder, Workbook, Worksheet,
-};
-use chrono::Local; // 用于在Excel中显示生成时间（可选）
+use chrono::Local;
+use rust_xlsxwriter::{Color, Format, FormatAlign, FormatBorder, Workbook, Worksheet}; // 用于在Excel中显示生成时间（可选）
 
 pub fn router() -> Router<AppState> {
     Router::new()
@@ -395,7 +393,7 @@ async fn download_sales_summary(
     let text_format = Format::new()
         .set_border(FormatBorder::Thin)
         .set_align(FormatAlign::Left);
-    
+
     let center_format = Format::new()
         .set_border(FormatBorder::Thin)
         .set_align(FormatAlign::Center);
@@ -432,14 +430,30 @@ async fn download_sales_summary(
     let _ = worksheet.merge_range(0, 0, 0, 6, &title_text, &title_format);
 
     let time_str = format!("生成时间: {}", Local::now().format("%Y-%m-%d %H:%M"));
-    let _ = worksheet.merge_range(1, 0, 1, 6, &time_str, &Format::new().set_align(FormatAlign::Right));
+    let _ = worksheet.merge_range(
+        1,
+        0,
+        1,
+        6,
+        &time_str,
+        &Format::new().set_align(FormatAlign::Right),
+    );
 
     // 4. 写入表头
-    let headers = ["制品编号", "制品名", "初始数量","结束数量", "单价", "销售量", "销售额"];
+    let headers = [
+        "制品编号",
+        "制品名",
+        "初始数量",
+        "结束数量",
+        "单价",
+        "销售量",
+        "销售额",
+    ];
     let header_row_idx = 2;
     for (col, text) in headers.iter().enumerate() {
         // 修改点：使用 write_string_with_format
-        let _ = worksheet.write_string_with_format(header_row_idx, col as u16, *text, &header_format);
+        let _ =
+            worksheet.write_string_with_format(header_row_idx, col as u16, *text, &header_format);
     }
 
     // 冻结窗格
@@ -452,12 +466,28 @@ async fn download_sales_summary(
 
     for item in details.iter() {
         // 修改点：所有带 format 的都加上 _with_format
-        let _ = worksheet.write_string_with_format(start_row, 0, &item.product_code, &center_format);
+        let _ =
+            worksheet.write_string_with_format(start_row, 0, &item.product_code, &center_format);
         let _ = worksheet.write_string_with_format(start_row, 1, &item.product_name, &text_format);
-        let _ = worksheet.write_number_with_format(start_row, 2, item.initial_stock as f64, &center_format);
+        let _ = worksheet.write_number_with_format(
+            start_row,
+            2,
+            item.initial_stock as f64,
+            &center_format,
+        );
         let _ = worksheet.write_number_with_format(start_row, 4, item.unit_price, &currency_format);
-        let _ = worksheet.write_number_with_format(start_row, 5, item.total_quantity as f64, &center_format);
-        let _ = worksheet.write_number_with_format(start_row, 6, item.total_revenue_per_item, &currency_format);
+        let _ = worksheet.write_number_with_format(
+            start_row,
+            5,
+            item.total_quantity as f64,
+            &center_format,
+        );
+        let _ = worksheet.write_number_with_format(
+            start_row,
+            6,
+            item.total_revenue_per_item,
+            &currency_format,
+        );
 
         // 第三列空着，用于现场填写结束数量进行盘点
         let _ = worksheet.write_blank(start_row, 3, &text_format);
@@ -469,35 +499,36 @@ async fn download_sales_summary(
 
     // 6. 写入总计
     let _ = worksheet.write_string_with_format(start_row, 0, "总计", &total_row_format);
-    
+
     // 注意：write_blank 不需要 _with_format 就能应用背景色
     let _ = worksheet.write_blank(start_row, 1, &total_row_format);
     let _ = worksheet.write_blank(start_row, 2, &total_row_format);
     let _ = worksheet.write_blank(start_row, 3, &total_row_format);
     let _ = worksheet.write_blank(start_row, 4, &total_row_format);
-    
-    let _ = worksheet.write_number_with_format(start_row, 5, sum_quantity as f64, &total_row_format);
+
+    let _ =
+        worksheet.write_number_with_format(start_row, 5, sum_quantity as f64, &total_row_format);
     let _ = worksheet.write_number_with_format(start_row, 6, sum_revenue, &total_currency_format);
 
     start_row += 1;
     // 7. 写入备注和签名窗格
-    
+
     // 空一行
     start_row += 1;
-    
+
     // 备注框样式
     let note_format = Format::new()
         .set_border(FormatBorder::Thin)
         .set_align(FormatAlign::Center)
         .set_align(FormatAlign::VerticalCenter);
-    
+
     // 备注行 - 设置行高为 40 点
     let _ = worksheet.set_row_height(start_row, 40.0);
     let _ = worksheet.write_string_with_format(start_row, 0, "备注信息:", &note_format);
     let _ = worksheet.merge_range(start_row, 1, start_row, 6, "", &note_format);
-    
+
     start_row += 1;
-    
+
     // 签名行 - 设置行高为 25 点
     let _ = worksheet.set_row_height(start_row, 30.0);
     let _ = worksheet.write_string_with_format(start_row, 0, "出摊人:", &note_format);
@@ -505,55 +536,71 @@ async fn download_sales_summary(
 
     start_row += 1;
     // 写一行用于说明
-    let instruction_format = Format::new()
-        .set_italic()
-        .set_align(FormatAlign::Left);
+    let instruction_format = Format::new().set_italic().set_align(FormatAlign::Left);
     let instruction_text = "说明：请在“结束数量”栏填写展会结束时你清点出来的数量，和销售情况做对比，以盘点可能的货物丢失。";
     let _ = worksheet.set_row_height(start_row, 30.0);
-    let _ = worksheet.merge_range(start_row, 0, start_row, 6, instruction_text, &instruction_format);
+    let _ = worksheet.merge_range(
+        start_row,
+        0,
+        start_row,
+        6,
+        instruction_text,
+        &instruction_format,
+    );
 
     // 保存
     match workbook.save(&temp_file) {
-        Ok(_) => {
-            match fs::read(&temp_file) {
-                Ok(buf) => {
-                    let _ = fs::remove_file(&temp_file);
-                    let mut headers = HeaderMap::new();
-                    headers.insert(
-                        axum::http::header::CONTENT_TYPE,
-                        HeaderValue::from_static(
-                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        ),
-                    );
-                    let download_filename = format!("sales_report_event_{}.xlsx", event_id);
-                    headers.insert(
-                        axum::http::header::CONTENT_DISPOSITION,
-                        HeaderValue::from_str(&format!(
-                            "attachment; filename=\"{}\"",
-                            download_filename
-                        ))
-                        .unwrap_or_else(|_| HeaderValue::from_static("attachment")),
-                    );
-                    (headers, buf).into_response()
-                }
-                Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Failed to read excel").into_response(),
+        Ok(_) => match fs::read(&temp_file) {
+            Ok(buf) => {
+                let _ = fs::remove_file(&temp_file);
+                let mut headers = HeaderMap::new();
+                headers.insert(
+                    axum::http::header::CONTENT_TYPE,
+                    HeaderValue::from_static(
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    ),
+                );
+                let download_filename = format!("sales_report_event_{}.xlsx", event_id);
+                headers.insert(
+                    axum::http::header::CONTENT_DISPOSITION,
+                    HeaderValue::from_str(&format!(
+                        "attachment; filename=\"{}\"",
+                        download_filename
+                    ))
+                    .unwrap_or_else(|_| HeaderValue::from_static("attachment")),
+                );
+                (headers, buf).into_response()
             }
-        }
+            Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Failed to read excel").into_response(),
+        },
         Err(e) => {
             eprintln!("Excel generation error: {}", e);
-            (StatusCode::INTERNAL_SERVER_ERROR, "Failed to generate excel").into_response()
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to generate excel",
+            )
+                .into_response()
         }
     }
 }
 
 fn check_read_permission(claims: &Claims, event_id: i64) -> Result<(), (StatusCode, &'static str)> {
+    // 管理员拥有所有权限
     if claims.role == "admin" {
+        println!("Admin access granted");
         return Ok(());
     }
+    
+    // 摊主需要检查 access 权限
     if claims.role == "vendor" {
         if claims.access == "all" || claims.event_id == Some(event_id) {
+            println!("Vendor access granted");
             return Ok(());
         }
+        // 摊主权限不足
+        return Err((StatusCode::FORBIDDEN, "Access denied"));
     }
+    
+    // 未知角色
     Err((StatusCode::FORBIDDEN, "Access denied"))
 }

@@ -31,12 +31,13 @@
         </n-button-group>
       </div>
       <n-spin :show="store.isLoading">
-        <ProductGrid 
-          v-if="!store.isLoading"
-          :products="filteredProducts" 
-          :card-size="cardSize"
-          @add-to-cart="store.addToCart"
-        />
+        <div class="product-scroll" v-if="!store.isLoading">
+          <ProductGrid 
+            :products="filteredProducts" 
+            :card-size="cardSize"
+            @add-to-cart="store.addToCart"
+          />
+        </div>
       </n-spin>
     </div>
     <div class="cart-panel" v-if="!isMobile">
@@ -184,13 +185,25 @@ onUnmounted(() => {
 .customer-view {
   display: flex;
   height: 100vh;
+  overflow: hidden; /* 禁止整体页面滚动，改为内部滚动 */
   background-color: var(--bg-color); /* 确保背景色统一 */
 }
 
 .product-panel {
   flex: 3; /* 占据约 3/4 宽度 */
   padding: 2rem;
-  overflow-y: auto; /* 当商品过多时，允许此区域独立滚动 */
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden; /* 交给内部滚动容器处理 */
+}
+
+.product-scroll {
+  flex: 1;
+  min-height: 0; /* 允许子元素在 flex 容器中正确收缩以启用滚动 */
+  overflow-y: auto;
+  padding-right: 0.25rem; /* 防止滚动条遮挡内容 */
+  box-sizing: border-box;
 }
 
 .cart-panel {
@@ -265,66 +278,87 @@ onUnmounted(() => {
   border-color: var(--accent-color);
   color: var(--accent-color);
 }
-/* 保持桌面端原样 */
-
-@media (max-width: 600px) {
+/* 平板端适配 */
+@media (max-width: 1024px) {
   .sidebar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 48px;              /* 更窄，只占很小空间 */
-    max-width: 64px;
-    min-width: 44px;
-    height: 100vh;
-    z-index: 1200;
-    background: var(--card-bg-color);
-    border-right: 1px solid var(--border-color);
-    box-shadow: var(--shadow-sm);
-    padding: 0.5rem 0.2rem 0.5rem 0.2rem;
-    overflow-y: auto;
-    flex: none;
-    align-items: center;
-  }
-  .category-list {
-    gap: 0.1rem;
-    align-items: center;
-    padding: 0;
-  }
-  .category-btn {
-    width: 48px;
-    min-width: 40px;
-    max-width: 48px;
-    padding: 0.2rem 0;
-    margin: 0;
-    font-size: 0.75rem;
-    text-align: center;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    border-radius: 6px;
+    flex: 0 0 140px;
+    padding: 1rem;
   }
   .product-panel {
-    padding: 0 !important;
-    margin-left: 48px; /* 与.sidebar宽度一致，避免被遮挡 */
-    width: calc(100vw - 48px);
-    min-width: 0;
-    max-width: 100vw;
-    box-sizing: border-box;
+    padding: 1.25rem;
   }
   .cart-panel {
-    display: none !important;
-    width: 0 !important;
-    min-width: 0 !important;
-    max-width: 0 !important;
-    padding: 0 !important;
-    margin: 0 !important;
+    padding: 1.25rem;
+  }
+}
+
+/* 移动端布局（堆叠） */
+@media (max-width: 768px) {
+  .customer-view {
+    flex-direction: column;
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+
+  .sidebar {
+    position: sticky;
+    top: 0;
+    width: 100%;
+    height: auto;
+    flex: none;
+    padding: 0.75rem;
+    border-right: none;
+    border-bottom: 1px solid var(--border-color);
+    z-index: 10;
+  }
+
+  .category-list {
+    flex-direction: row;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+  }
+
+  .category-btn {
+    flex: 0 0 auto;
+    min-width: 92px;
+    text-align: center;
+  }
+
+  .product-panel {
+    padding: 1rem;
+    margin-left: 0;
+    width: 100%;
+    box-sizing: border-box;
+    height: auto;
+  }
+
+  .product-scroll {
+    max-height: none;
+  }
+
+  .cart-panel {
+    display: none;
+  }
+}
+
+/* 小屏再收紧间距 */
+@media (max-width: 480px) {
+  .sidebar {
+    padding: 0.6rem;
+  }
+  .category-btn {
+    min-width: 80px;
+    padding: 0.45rem 0.6rem;
+    font-size: 0.85rem;
   }
   .product-panel {
-    flex: 1 1 0%;
-    width: 100vw !important;
-    max-width: 100vw !important;
-    margin-right: 0 !important;
-    padding-right: 0 !important;
+    padding: 0.75rem;
+  }
+  .card-size-toolbar {
+    justify-content: center;
+    margin-bottom: 1rem;
   }
 }
 </style>

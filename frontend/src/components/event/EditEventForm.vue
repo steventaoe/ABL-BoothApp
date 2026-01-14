@@ -100,9 +100,20 @@ defineExpose({
 </script>
 
 <style scoped>
-/* 样式与 CreateEventForm 类似 */
-.form-group { margin-bottom: 1rem; }
-label { display: block; margin-bottom: 0.5rem; }
+/* 基础样式 */
+.form-group {
+  margin-bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+}
+
+label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  font-size: 1rem;
+}
+
 input {
   width: 100%;
   background-color: var(--bg-color);
@@ -112,5 +123,59 @@ input {
   border-radius: 4px;
   box-sizing: border-box;
 }
-.error-message { color: var(--error-color); }
+
+/* Naive UI 组件样式 */
+:deep(.n-input) {
+  width: 100%;
+}
+
+:deep(.n-date-picker) {
+  width: 100%;
+}
+
+:deep(.n-input__input-el) {
+  width: 100%;
+}
+
+.error-message {
+  color: var(--error-color);
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+}
+
+/* 响应式布局 */
+@media (max-width: 768px) {
+  .form-group {
+    margin-bottom: 1.2rem;
+  }
+
+  label {
+    font-size: 0.95rem;
+  }
+
+  input {
+    padding: 8px;
+    font-size: 16px; /* 防止移动端输入框自动缩放 */
+  }
+}
+
+@media (max-width: 480px) {
+  .form-group {
+    margin-bottom: 1rem;
+  }
+
+  label {
+    font-size: 0.9rem;
+    margin-bottom: 0.4rem;
+  }
+
+  input {
+    padding: 8px;
+    font-size: 14px;
+  }
+
+  .error-message {
+    font-size: 0.85rem;
+  }
+}
 </style>

@@ -10,6 +10,7 @@ mod master_product;
 mod order;
 mod product;
 mod stats;
+mod sync;
 
 pub fn router() -> Router<AppState> {
     Router::new()
@@ -18,6 +19,7 @@ pub fn router() -> Router<AppState> {
         .nest("/events", stats::router()) // 包含 /events/:id/stats 等
         .nest("/master-products", master_product::router())
         .nest("/admin", admin::router()) // /api/admin/...
+        .merge(sync::router())
         .merge(info::router()) // /api/server-info
         .merge(product::router()) // /api/events/:id/products
         .merge(order::router()) // /api/events/:id/orders

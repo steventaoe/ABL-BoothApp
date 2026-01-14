@@ -1,6 +1,8 @@
 <template>
   <div class="list-container">
-    <h2>展会列表</h2>
+    <div class="section-header">
+      <h2>展会列表</h2>
+    </div>
 
     <!-- 搜索和过滤区域（Naive UI） -->
     <div class="search-container">
@@ -233,16 +235,46 @@ async function handleUpdateEvent() {
 </script>
 
 <style scoped>
+.list-container {
+  background-color: var(--card-bg-color);
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+}
+
+.section-header {
+  background: var(--card-bg-color);
+  border-bottom: 2px solid var(--border-color);
+  padding: 1rem 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.section-header h2 {
+  margin: 0;
+  color: var(--accent-color);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.search-container {
+  padding: 1rem 1.5rem;
+}
+
 .event-list {
   list-style: none;
-  padding: 0;
+  padding: 1.5rem;
   margin: 0;
 }
 
 /* 每个卡片为独立长条 */
 .event-card {
+  box-sizing: border-box;
   display: flex;
-  align-items: center;
+  flex-wrap: wrap;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
   width: 100%;
@@ -311,10 +343,12 @@ async function handleUpdateEvent() {
 
 .status-actions {
   margin-top: 0.5rem;
-  /* 【新增】让按钮之间有一点间距 */
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   justify-content: flex-end;
+  width: 100%;
+  min-width: 250px;
 }
 .action-btn {
   background: none;
@@ -347,15 +381,13 @@ async function handleUpdateEvent() {
   color: var(--text-white);
 }
 .search-container {
-  background-color: var(--card-bg-color);
-  padding: 1rem;
-  border-radius: 8px;
-  margin-bottom: 1.5rem;
-  border: 1px solid var(--border-color);
+  padding: 1rem 1.5rem;
   display: flex;
   flex-wrap: wrap; /* 在小屏幕上换行 */
   gap: 1rem;
   align-items: flex-end; /* 让元素底部对齐 */
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 1rem;
 }
 
 .search-group {
@@ -402,7 +434,67 @@ async function handleUpdateEvent() {
 }
 .no-results-message {
   text-align: center;
-  padding: 2rem;
-  color: var(--text-disabled);
+  padding: 2rem 1.5rem;
+  color: var(--text-muted);
+}
+
+/* 响应式布局调整 */
+@media (max-width: 768px) {
+  .event-card {
+    flex-direction: column;
+    align-items: flex-start;
+    min-height: auto;
+    padding: 16px;
+  }
+
+  .event-info {
+    width: 100%;
+  }
+
+  .status-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .search-container {
+    flex-direction: column;
+    padding: 0.75rem;
+  }
+
+  .search-group {
+    width: 100%;
+  }
+
+  .date-range-inputs {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .date-range-inputs span {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .event-card {
+    padding: 12px;
+    gap: 8px;
+  }
+
+  .event-info h3 {
+    font-size: 1rem;
+  }
+
+  .event-info p {
+    font-size: 0.9rem;
+  }
+
+  .status-actions {
+    gap: 6px;
+  }
+
+  .search-group label {
+    font-size: 0.8rem;
+  }
 }
 </style>

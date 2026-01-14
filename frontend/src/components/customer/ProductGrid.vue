@@ -40,7 +40,7 @@ const props = defineProps({
   cardSize: { type: String, default: 'medium' }
 });
 const emit = defineEmits(['addToCart']);
-const backendUrl = 'http://127.0.0.1:5000';
+const backendUrl = 'http://127.0.0.1:5140';
 
 function handleCardClick(product) {
   if (product.current_stock > 0) {

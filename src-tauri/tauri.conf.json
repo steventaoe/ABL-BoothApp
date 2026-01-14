@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "booth-tool",
-  "version": "0.1.0",
-  "identifier": "com.booth-tool.app",
+  "productName": "abl-booth-tool",
+  "version": "1.0.0",
+  "identifier": "com.abl.booth-tool",
   "build": {
     "beforeDevCommand": "npm run dev --prefix frontend",
     "beforeBuildCommand": "npm run build --prefix frontend",
@@ -10,11 +10,18 @@
     "frontendDist": "../frontend/dist"
   },
   "app": {
+    "security": {
+      "csp": null,
+      "capabilities": ["default"] 
+    },  
     "windows": [
       {
-        "title": "漫展摆摊助手",
+        "label": "main",
+        "title": "漫展出摊机",
         "width": 1024,
-        "height": 768
+        "height": 768,
+        "resizable": true,
+        "dragDropEnabled": true
       }
     ]
   },

@@ -14,6 +14,7 @@ use axum::{
 };
 use serde::Deserialize;
 use serde_json::json;
+use tokio::fs;
 
 pub fn router() -> Router<AppState> {
     Router::new()
@@ -22,6 +23,7 @@ pub fn router() -> Router<AppState> {
             "/vendor-default-password",
             put(update_vendor_default_password),
         )
+        .route("/reset-database", put(reset_database_handler))
 }
 
 // ==========================================
@@ -130,6 +132,134 @@ async fn update_vendor_default_password(
         Err(e) => {
             eprintln!("[DEBUG] Failed to update vendor password: {:?}", e);
             (StatusCode::INTERNAL_SERVER_ERROR, "Database Error").into_response()
+        }
+    }
+}
+
+// ==========================================
+// 3. 重置数据库（危险操作）
+// ==========================================
+async fn reset_database_handler(
+    State(state): State<AppState>,
+    _: AdminOnly,
+) -> impl IntoResponse {
+    eprintln!("[WARNING] Database reset requested by admin");
+
+    // --------------------------------------------------------
+    // 第一步：删除物理文件（图片资源）
+    // --------------------------------------------------------
+    let uploads_dir = &state.upload_dir;
+    if uploads_dir.exists() {
+        eprintln!("[INFO] Cleaning uploads directory: {:?}", uploads_dir);
+        // 尝试删除目录
+        match fs::remove_dir_all(uploads_dir).await {
+            Ok(_) => {
+                // 重新创建空目录
+                if let Err(e) = fs::create_dir_all(uploads_dir).await {
+                    eprintln!("[ERROR] Failed to recreate uploads directory: {:?}", e);
+                    return (
+                        StatusCode::INTERNAL_SERVER_ERROR, 
+                        Json(json!({"error": "无法重创建上传目录"}))
+                    ).into_response();
+                }
+            }
+            Err(e) => {
+                eprintln!("[ERROR] Failed to delete uploads directory: {:?}", e);
+                // 这里可以选择报错返回，或者仅仅打印日志继续清除数据库
+            }
+        }
+    }
+
+    // --------------------------------------------------------
+    // 第二步：清空数据库表（保留连接池，使用事务）
+    // --------------------------------------------------------
+    
+    // 开启一个事务
+    let mut tx = match state.db.begin().await {
+        Ok(tx) => tx,
+        Err(e) => {
+            eprintln!("[ERROR] Failed to start transaction: {:?}", e);
+            return (StatusCode::INTERNAL_SERVER_ERROR, "Database Error").into_response();
+        }
+    };
+
+    // 【关键】：按顺序清空表（需要考虑外键约束）
+    // 先删除子表，再删除父表，避免外键冲突
+    // 注意：不删除 settings 表中的管理员密码
+    
+    let tables_to_clear = vec![
+        "order_items",       // 订单明细表（子表）
+        "orders",            // 订单主表
+        "products",          // 场次库存商品表
+        "events",            // 展会场次表
+        "master_products",   // 全局商品库表
+    ];
+
+    for table in &tables_to_clear {
+        let query = format!("DELETE FROM {}", table);
+        if let Err(e) = sqlx::query(&query).execute(&mut *tx).await {
+            eprintln!("[ERROR] Failed to clear table {}: {:?}", table, e);
+            let _ = tx.rollback().await;
+            return (StatusCode::INTERNAL_SERVER_ERROR, "Failed to clear data").into_response();
+        }
+        eprintln!("[INFO] Cleared table: {}", table);
+    }
+
+    // 重置自增ID（可选，让下次插入数据从1开始）
+    if let Err(e) = sqlx::query("DELETE FROM sqlite_sequence").execute(&mut *tx).await {
+        eprintln!("[WARNING] Failed to reset auto-increment IDs: {:?}", e);
+        // 这不是致命错误，继续执行
+    }
+
+    // 特殊处理 settings 表：重置为默认密码
+    // 删除所有设置，然后重新插入默认密码
+    if let Err(e) = sqlx::query("DELETE FROM settings").execute(&mut *tx).await {
+        eprintln!("[ERROR] Failed to clear settings: {:?}", e);
+        let _ = tx.rollback().await;
+        return (StatusCode::INTERNAL_SERVER_ERROR, "Failed to reset settings").into_response();
+    }
+
+    // 重新初始化默认密码（admin123 和 vendor123）
+    use crate::utils::security::hash_password;
+    
+    let admin_hash = hash_password("admin123");
+    let vendor_hash = hash_password("vendor123");
+    
+    if let Err(e) = sqlx::query("INSERT INTO settings (key, value) VALUES ('admin_password', ?), ('vendor_password', ?)")
+        .bind(&admin_hash)
+        .bind(&vendor_hash)
+        .execute(&mut *tx)
+        .await 
+    {
+        eprintln!("[ERROR] Failed to reset passwords: {:?}", e);
+        let _ = tx.rollback().await;
+        return (StatusCode::INTERNAL_SERVER_ERROR, "Failed to reset passwords").into_response();
+    }
+    
+    eprintln!("[INFO] Reset passwords to default (admin123 / vendor123)");
+
+    // 提交事务
+    match tx.commit().await {
+        Ok(_) => {
+            eprintln!("[INFO] Database reset successful (Data cleared)");
+            
+            // 可选：执行 VACUUM 释放磁盘空间（不能在事务中执行）
+            // sqlx::query("VACUUM").execute(&state.db).await.ok();
+
+            (
+                StatusCode::OK,
+                Json(json!({
+                    "message": "数据库已完全重置，所有图片已删除，密码已恢复为 admin123 / vendor123",
+                    "warning": "所有数据和文件已被清空，请重新登录"
+                })),
+            ).into_response()
+        }
+        Err(e) => {
+            eprintln!("[ERROR] Failed to commit transaction: {:?}", e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR, 
+                Json(json!({"error": "数据库重置事务提交失败"}))
+            ).into_response()
         }
     }
 }

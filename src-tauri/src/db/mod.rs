@@ -66,3 +66,30 @@ pub async fn init_db(app_data_dir: &PathBuf) -> Result<SqlitePool, sqlx::Error> 
 
     Ok(pool)
 }
+
+/// 完全重置数据库：删除所有数据并重新初始化
+/// 警告：这是一个危险操作，会清空所有数据！
+pub async fn reset_database(app_data_dir: &PathBuf) -> Result<SqlitePool, sqlx::Error> {
+    use sqlx::migrate::MigrateDatabase;
+
+    println!("[WARNING] Resetting database - all data will be lost!");
+
+    // 1. 拼接数据库文件路径
+    let db_path = app_data_dir.join("sale_system.db");
+    let db_url = format!("sqlite://{}", db_path.to_string_lossy());
+
+    // 2. 删除现有数据库文件
+    if Sqlite::database_exists(&db_url).await.unwrap_or(false) {
+        Sqlite::drop_database(&db_url).await?;
+        println!("[INFO] Existing database dropped.");
+    }
+
+    // 3. 删除物理文件（以防万一）
+    if db_path.exists() {
+        fs::remove_file(&db_path).ok();
+    }
+
+    // 4. 重新初始化数据库
+    println!("[INFO] Reinitializing database...");
+    init_db(app_data_dir).await
+}

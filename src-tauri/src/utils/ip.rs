@@ -9,24 +9,24 @@ pub fn get_lan_ip() -> String {
 
     // 定义黑名单关键词：这些通常是虚拟机的网卡，我们尽量不要选它们
     let blacklist = [
-        "virtual", "vmware", "vbox", "docker", "wsl", "vether", "vpn", "switch"
+        "virtual", "vmware", "vbox", "docker", "wsl", "vether", "vpn", "switch",
     ];
 
     // 定义白名单高优先级关键词：这些通常是真实的物理网卡 (Wi-Fi 或 有线)
     // 根据你的 ipconfig，你的网卡名包含 "WLAN"，这会直接命中
-    let whitelist = [
-        "wlan", "wi-fi", "wireless", "eth", "en0", "en1", "ethernet"
-    ];
+    let whitelist = ["wlan", "wi-fi", "wireless", "eth", "en0", "en1", "ethernet"];
 
     // =========================================================================
     // 策略 1: 优先寻找白名单内的真实网卡 (比如 "WLAN", "Ethernet")
     // =========================================================================
     for (name, ip) in &network_interfaces {
         if let IpAddr::V4(ipv4) = ip {
-            if ipv4.is_loopback() { continue; }
+            if ipv4.is_loopback() {
+                continue;
+            }
 
             let name_lower = name.to_lowercase();
-            
+
             // 如果网卡名字包含 "wlan" 等关键词，且不包含 "virtual" 等黑名单词
             // 直接锁定，这 99% 是你要的 IP
             let is_whitelisted = whitelist.iter().any(|&k| name_lower.contains(k));
@@ -43,7 +43,9 @@ pub fn get_lan_ip() -> String {
     // =========================================================================
     for (name, ip) in &network_interfaces {
         if let IpAddr::V4(ipv4) = ip {
-            if ipv4.is_loopback() { continue; }
+            if ipv4.is_loopback() {
+                continue;
+            }
 
             let name_lower = name.to_lowercase();
             // 只要名字不包含 vmware/virtualbox 等，就凑合用

@@ -12,6 +12,7 @@ import EventPortalView from '../views/EventPortalView.vue'
 import AdminEventOrders from '../views/AdminEventOrders.vue'
 import LoginView from '../views/LoginView.vue'
 import AdminEventStat from '../views/AdminEventStat.vue';
+import About from '../views/About.vue';
 import NotFound from '../views/NotFound.vue';
 import ServerError from '../views/ServerError.vue';
 const routes = [
@@ -51,6 +52,12 @@ const routes = [
         path: '/admin/events/:id/stats',
         name: 'AdminEventStats',
         component: AdminEventStat,
+        },
+        // 【新增】关于页面
+        {
+          path: 'about',
+          name: 'admin-about',
+          component: About,
         }
       ],
     },

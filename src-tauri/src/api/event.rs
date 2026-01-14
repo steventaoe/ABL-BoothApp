@@ -100,10 +100,7 @@ async fn list_events(
 
     // [修复] 转换为包含 qrcode_url 的 Response 对象
     // 即使 events 为空，也会返回 [] (空数组) 而不是 null
-    let response: Vec<EventResponse> = events
-        .into_iter()
-        .map(EventResponse::from_model)
-        .collect();
+    let response: Vec<EventResponse> = events.into_iter().map(EventResponse::from_model).collect();
 
     Json(response)
 }

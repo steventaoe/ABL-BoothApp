@@ -1,7 +1,14 @@
 <template>
   <div class="form-container">
-    <h3>添加新商品</h3>
-    <n-form @submit.prevent label-placement="top">
+    <div class="section-header" @click="isFormCollapsed = !isFormCollapsed">
+      <h2>添加新商品</h2>
+      <n-button text class="toggle-btn">
+        {{ isFormCollapsed ? '展开' : '折叠' }}
+      </n-button>
+    </div>
+    <transition name="expand">
+      <div v-show="!isFormCollapsed" class="section-inner">
+        <n-form @submit.prevent label-placement="top">
       <div class="form-group">
         <label>商品编号:</label>
         <n-input v-model:value="formData.product_code" placeholder="A01" />
@@ -17,8 +24,9 @@
       <n-button type="primary" :loading="isSubmitting" @click="handleSubmit">{{ isSubmitting ? '添加中...' : '添加' }}</n-button>
       <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
     </n-form>
+      </div>
+    </transition>
   </div>
-  
 </template>
 
 <script setup>
@@ -30,6 +38,7 @@ import { NForm, NInput, NInputNumber, NButton } from 'naive-ui';
 const store = useProductStore();
 const errorMessage = ref('');
 const isSubmitting = ref(false);
+const isFormCollapsed = ref(false);
 const formData = ref({
   product_code: '',
   name: '',
@@ -70,5 +79,81 @@ async function handleSubmit() {
 </script>
 
 <style scoped>
-/* 样式与 CreateEventForm.vue 完全可以共享 */
+.form-container {
+  margin-bottom: 2rem;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  padding: 0.75rem 1rem;
+  background: var(--card-bg-color);
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  margin-bottom: 0.5rem;
+}
+
+.section-header:hover {
+  background: var(--hover-bg-color, var(--card-bg-color));
+  border-color: var(--accent-color);
+}
+
+.section-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: var(--accent-color);
+  font-weight: 600;
+}
+
+.toggle-btn {
+  font-size: 0.9rem;
+  padding: 0.25rem 0.75rem;
+  min-width: auto;
+  color: var(--accent-color);
+}
+
+.expand-enter-active,
+.expand-leave-active {
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.expand-enter-from,
+.expand-leave-to {
+  opacity: 0;
+  max-height: 0;
+}
+
+.expand-enter-to,
+.expand-leave-from {
+  opacity: 1;
+  max-height: 2000px;
+}
+
+.section-inner {
+  background: var(--card-bg-color);
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+
+.error-message {
+  color: var(--error-color);
+  margin-top: 1rem;
+  font-size: 0.9rem;
+}
 </style>

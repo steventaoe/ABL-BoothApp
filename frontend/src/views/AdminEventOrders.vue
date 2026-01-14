@@ -6,16 +6,89 @@
     </header>
 
     <main>
-      <div class="filters">
-        <label for="status-filter">筛选状态:</label>
-        <n-select
-          id="status-filter"
-          v-model:value="statusFilter"
-          :options="statusOptions"
-          size="small"
-          style="min-width: 200px;"
-        />
-      </div>
+      <!-- 筛选器区块 -->
+      <section class="filter-section">
+        <div class="section-header" @click="isFilterExpanded = !isFilterExpanded">
+          <h2>订单筛选</h2>
+          <n-button text class="toggle-btn">
+            {{ isFilterExpanded ? '折叠' : '展开' }}
+          </n-button>
+        </div>
+        <transition name="expand">
+          <div v-show="isFilterExpanded" class="section-container">
+            <div class="filter-content">
+              <div class="filter-row">
+                <label for="status-filter">状态:</label>
+                <n-select
+                  id="status-filter"
+                  v-model:value="statusFilter"
+                  :options="statusOptions"
+                  placeholder="选择筛选状态"
+                  class="status-select"
+                />
+              </div>
+              
+              <div class="filter-row">
+                <label>金额范围:</label>
+                <div class="amount-range">
+                  <n-input-number
+                    v-model:value="minAmount"
+                    :min="0"
+                    :precision="2"
+                    placeholder="最小金额"
+                    clearable
+                    class="amount-input"
+                  >
+                    <template #prefix>¥</template>
+                  </n-input-number>
+                  <span class="range-separator">-</span>
+                  <n-input-number
+                    v-model:value="maxAmount"
+                    :min="0"
+                    :precision="2"
+                    placeholder="最大金额"
+                    clearable
+                    class="amount-input"
+                  >
+                    <template #prefix>¥</template>
+                  </n-input-number>
+                </div>
+              </div>
+              
+              <div class="filter-row">
+                <label for="product-filter">商品名称:</label>
+                <n-input
+                  id="product-filter"
+                  v-model:value="productNameFilter"
+                  placeholder="输入商品名称搜索"
+                  clearable
+                  class="product-input"
+                />
+              </div>
+              
+              <n-button
+                v-if="statusFilter !== 'all' || minAmount !== null || maxAmount !== null || productNameFilter"
+                @click="clearFilters"
+                class="clear-btn"
+                secondary
+              >
+                清空筛选
+              </n-button>
+            </div>
+          </div>
+        </transition>
+      </section>
+
+      <!-- 订单列表区块 -->
+      <section class="list-section">
+        <div class="section-header" @click="isListExpanded = !isListExpanded">
+          <h2>订单列表</h2>
+          <n-button text class="toggle-btn">
+            {{ isListExpanded ? '折叠' : '展开' }}
+          </n-button>
+        </div>
+        <transition name="expand">
+          <div v-show="isListExpanded" class="section-container">
 
       <div v-if="store.isLoading" class="loading-message">
         <n-spin size="large">
@@ -26,7 +99,7 @@
         <n-alert type="error" :bordered="false">{{ store.error }}</n-alert>
       </div>
       
-      <n-card v-else-if="filteredOrders.length" size="small">
+      <div v-else-if="filteredOrders.length" class="table-wrapper">
         <n-table class="order-table" size="small">
           <thead>
             <tr>
@@ -61,8 +134,11 @@
             </tr>
           </tbody>
         </n-table>
-      </n-card>
+      </div>
       <p v-else>没有找到符合条件的订单。</p>
+          </div>
+        </transition>
+      </section>
     </main>
   </div>
 </template>
@@ -71,15 +147,20 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useEventDetailStore } from '@/stores/eventDetailStore';
-import { NSelect, NSpin, NAlert, NTable, NCard, NTag, NDropdown, NButton, useDialog, useMessage } from 'naive-ui';
+import { NSelect, NSpin, NAlert, NTable, NCard, NTag, NDropdown, NButton, NInput, NInputNumber, useDialog, useMessage } from 'naive-ui';
 const props = defineProps({
   id: { type: String, required: true }
 });
 
 const store = useEventDetailStore();
 const statusFilter = ref('all'); // 筛选器的状态
+const minAmount = ref(null); // 最小金额
+const maxAmount = ref(null); // 最大金额
+const productNameFilter = ref(''); // 商品名称筛选
 const dialog = useDialog();
 const message = useMessage();
+const isFilterExpanded = ref(true);
+const isListExpanded = ref(true);
 const statusOptions = [
   { label: '所有订单', value: 'all' },
   { label: '待处理', value: 'pending' },
@@ -89,10 +170,32 @@ const statusOptions = [
 
 // 计算属性，根据筛选器动态过滤订单
 const filteredOrders = computed(() => {
-  if (statusFilter.value === 'all') {
-    return store.allOrders;
+  let orders = store.allOrders;
+  
+  // 状态筛选
+  if (statusFilter.value !== 'all') {
+    orders = orders.filter(order => order.status === statusFilter.value);
   }
-  return store.allOrders.filter(order => order.status === statusFilter.value);
+  
+  // 金额范围筛选
+  if (minAmount.value !== null) {
+    orders = orders.filter(order => order.total_amount >= minAmount.value);
+  }
+  if (maxAmount.value !== null) {
+    orders = orders.filter(order => order.total_amount <= maxAmount.value);
+  }
+  
+  // 商品名称筛选
+  if (productNameFilter.value.trim()) {
+    const keyword = productNameFilter.value.trim().toLowerCase();
+    orders = orders.filter(order => 
+      order.items.some(item => 
+        item.product_name.toLowerCase().includes(keyword)
+      )
+    );
+  }
+  
+  return orders;
 });
 
 function changeStatus(orderId, newStatus) {
@@ -133,6 +236,13 @@ function actionOptions(status) {
   return opts;
 }
 
+function clearFilters() {
+  statusFilter.value = 'all';
+  minAmount.value = null;
+  maxAmount.value = null;
+  productNameFilter.value = '';
+}
+
 // --- 生命周期 ---
 onMounted(() => {
   store.fetchAllOrdersForEvent(props.id);
@@ -157,19 +267,139 @@ onUnmounted(() => {
   right: 0;
 }
 
+/* 通用区块样式 */
+.filter-section,
+.list-section {
+  margin-bottom: 2rem;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  padding: 0.75rem 1rem;
+  background: var(--card-bg-color);
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  margin-bottom: 0.5rem;
+}
+
+.section-header:hover {
+  background: var(--hover-bg-color, var(--card-bg-color));
+  border-color: var(--accent-color);
+}
+
+.section-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: var(--accent-color);
+  font-weight: 600;
+}
+
+.toggle-btn {
+  font-size: 0.9rem;
+  padding: 0.25rem 0.75rem;
+  min-width: auto;
+  color: var(--accent-color);
+}
+
+/* 展开/折叠动画 */
+.expand-enter-active,
+.expand-leave-active {
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.expand-enter-from,
+.expand-leave-to {
+  opacity: 0;
+  max-height: 0;
+}
+
+.expand-enter-to,
+.expand-leave-from {
+  opacity: 1;
+  max-height: 2000px;
+}
+
+.section-container {
+  background: var(--card-bg-color);
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  padding: 1.5rem;
+  overflow: hidden;
+}
+
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.filter-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.filter-content label {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--primary-text-color);
+  white-space: nowrap;
+  min-width: 90px;
+}
+
+.status-select {
+  min-width: 200px;
+  flex: 1;
+  max-width: 300px;
+}
+
+.amount-range {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+}
+
+.amount-input {
+  flex: 1;
+  min-width: 120px;
+  max-width: 200px;
+}
+
+.range-separator {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.product-input {
+  flex: 1;
+  max-width: 400px;
+}
+
+.clear-btn {
+  align-self: flex-start;
+  margin-left: 90px;
+}
+
 .form-container {
   background-color: var(--card-bg-color);
   border: 1px solid var(--border-color);
   padding: 1.5rem;
   border-radius: 8px;
   margin-bottom: 2rem;
-}
-
-.add-product-form {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-  flex-wrap: wrap;
 }
 
 .add-product-form input[type="text"],
@@ -186,7 +416,7 @@ onUnmounted(() => {
 /* --- 表格样式 --- */
 .order-table {
   width: 100%;
-  margin-top: 2rem;
+  margin-top: 0;
   border-collapse: collapse;
   border-spacing: 0;
   text-align: left;
@@ -198,12 +428,7 @@ onUnmounted(() => {
   color: var(--primary-text-color);
   font-weight: 600;
   border-bottom: 2px solid var(--accent-color);
-}
-.order-table td {
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--border-color);
-  color: var(--text-placeholder);
-  vertical-align: middle;
+  white-space: nowrap;
 }
 .order-table tbody tr:hover {
   background-color: var(--accent-color-light);
@@ -299,12 +524,13 @@ button:disabled {
 .filters {
   margin-bottom: 1.5rem;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 1.5rem;
+  gap: 1rem;
 }
 /* 文字大小要保证能排开一行 */
 .filters label {
-  font-size: 0.7rem;
+  font-size: 0.9rem;
   font-weight: 600;
   white-space: nowrap; /* 防止中文自动换行 */
   flex-shrink: 0;      /* 在 flex 布局中不缩小导致换行 */
@@ -408,6 +634,147 @@ button:disabled {
 .menu-items button:hover {
   background-color: var(--accent-color);
   color: var(--bg-color);
+}
+
+/* 响应式布局 */
+@media (max-width: 768px) {
+  main {
+    padding: 0;
+  }
+
+  .page-header {
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.75rem;
+  }
+
+  .page-header h1 {
+    font-size: 1.3rem;
+  }
+
+  .page-header p {
+    font-size: 0.9rem;
+  }
+
+  .section-container {
+    padding: 1rem;
+  }
+
+  .filter-content {
+    gap: 1rem;
+  }
+
+  .filter-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .filter-content label {
+    font-size: 0.9rem;
+    min-width: auto;
+  }
+
+  .status-select,
+  .product-input {
+    max-width: none;
+    width: 100%;
+  }
+
+  .amount-range {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .amount-input {
+    max-width: none;
+    min-width: 0;
+  }
+
+  .clear-btn {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .order-table {
+    font-size: 0.85rem;
+    min-width: 600px;
+  }
+
+  .order-table th,
+  .order-table td {
+    padding: 8px;
+  }
+
+  .item-list {
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-header {
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .page-header h1 {
+    font-size: 1.1rem;
+  }
+
+  .page-header p {
+    font-size: 0.8rem;
+  }
+
+  .section-header {
+    padding: 0.6rem 0.75rem;
+  }
+
+  .section-header h2 {
+    font-size: 1.1rem;
+  }
+
+  .section-container {
+    padding: 0.75rem;
+  }
+
+  .filter-content {
+    gap: 0.75rem;
+  }
+
+  .filter-row {
+    gap: 0.4rem;
+  }
+
+  .filter-content label {
+    font-size: 0.85rem;
+  }
+
+  .amount-input {
+    flex: 1 1 calc(50% - 1rem);
+  }
+
+  .order-table {
+    font-size: 0.75rem;
+    min-width: 550px;
+  }
+
+  .order-table th,
+  .order-table td {
+    padding: 6px 4px;
+  }
+
+  .order-table th {
+    font-size: 0.7rem;
+  }
+
+  .item-list {
+    padding-left: 1rem;
+    margin: 0;
+    font-size: 0.7rem;
+  }
+
+  .item-list li {
+    margin-bottom: 0.2rem;
+  }
 }
 
 </style>

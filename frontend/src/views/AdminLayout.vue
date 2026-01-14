@@ -81,6 +81,16 @@
               顾客视图
             </n-button>
           </n-space>
+          <n-divider />
+          <p class="section-title">系统</p>
+          <n-space vertical>
+            <n-button block secondary @click="showUpdateModal = true">
+              检查更新
+            </n-button>
+            <n-button block secondary @click="$router.push('/admin/about')">
+              关于
+            </n-button>
+          </n-space>
         </div>
       </div>
     </n-layout-sider>
@@ -100,6 +110,21 @@
 
       <router-view />
       
+      <!-- 主题设置 Modal -->
+      <n-modal
+        v-model:show="showThemeModal"
+        preset="card"
+        title="主题设置"
+        :mask-closable="false"
+        style="max-width: 960px"
+        class="theme-modal"
+      >
+        <ThemeSetting />
+      </n-modal>
+
+      <!-- 更新检查 Modal -->
+      <UpdateModal :show="showUpdateModal" @update:show="showUpdateModal = $event" />
+      
       <!-- 移动端遮罩层 -->
       <div 
         v-if="!isSidebarCollapsed && isMobile" 
@@ -115,9 +140,11 @@ import { computed, ref, onMounted, onUnmounted, h } from 'vue';
 import { RouterLink, useRouter, useRoute } from 'vue-router';
 import { 
   NLayout, NLayoutSider, NLayoutContent, NButton, 
-  NMenu, NDivider, NSpace, NIcon 
+  NMenu, NDivider, NSpace, NIcon, NModal 
 } from 'naive-ui';
 import { useEventStore } from '@/stores/eventStore';
+import ThemeSetting from '@/views/ThemeSetting.vue';
+import UpdateModal from '@/components/shared/UpdateModal.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -126,6 +153,8 @@ const eventStore = useEventStore();
 // 状态管理
 const isSidebarCollapsed = ref(false);
 const isMobile = ref(window.innerWidth < 992);
+const showThemeModal = ref(false);
+const showUpdateModal = ref(false);
 
 // 提取当前激活的菜单项
 const activeKey = computed(() => route.path);
@@ -160,6 +189,7 @@ const menuOptions = computed(() => {
   const baseOptions = [
     { label: () => h(RouterLink, { to: '/admin' }, { default: () => '展会管理' }), key: '/admin' },
     { label: () => h(RouterLink, { to: '/admin/master-products' }, { default: () => '全局商品库' }), key: '/admin/master-products' },
+    { label: () => h('div', { onClick: () => showThemeModal.value = true, style: { cursor: 'pointer' } }, '主题设置'), key: '/admin/theme-setting' },
   ];
 
   if (event.value) {
@@ -193,6 +223,10 @@ const handleResize = () => {
 onMounted(() => {
   window.addEventListener('resize', handleResize);
   handleResize();
+  if (!Array.isArray(eventStore.events) || eventStore.events.length === 0) {
+    // 刷新后主动拉取展会列表，确保侧边栏展示正确名称
+    eventStore.fetchEvents?.();
+  }
 });
 
 onUnmounted(() => {
@@ -294,5 +328,9 @@ onUnmounted(() => {
     height: 100% !important;
     z-index: 1000;
   }
+}
+
+.theme-modal :deep(.n-card__content) {
+  padding-top: 0;
 }
 </style>

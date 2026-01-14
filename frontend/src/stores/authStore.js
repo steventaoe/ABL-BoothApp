@@ -25,7 +25,24 @@ export const useAuthStore = defineStore('auth', () => {
   async function login(password, role, eventId, redirectPath) {
     try {
         // 1. 【核心改动】将 eventId 包含在发送给后端的数据中
-        const response = await api.post('/auth/login', { password, role, eventId });
+        // 【修复】确保不发送 undefined，而是发送 null 或不发送该字段
+        const payload = { password, role };
+        if (eventId !== undefined && eventId !== null && eventId !== '') {
+          payload.eventId = eventId;
+        }
+        
+        // 更明确的日志：字符串化 payload，避免移动端仅显示 [object Object]
+        try {
+          console.log('[authStore] Login payload:', JSON.stringify(payload));
+        } catch (e) {
+          console.log('[authStore] Login payload (raw object):', payload);
+        }
+        // 发送原始对象，让 axios 统一序列化为 JSON
+        const response = await api.post(
+          '/auth/login',
+          payload,
+          { headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' } }
+        );
         const responseData = response.data;
         
         // 2. 根据后端返回的数据，构建并更新前端的用户状态对象
@@ -33,6 +50,11 @@ export const useAuthStore = defineStore('auth', () => {
           role: responseData.role,
           access: responseData.access || 'all',
         };
+
+        // 2.1 保存后端返回的访问令牌到 sessionStorage，供 axios 拦截器使用
+        if (responseData.token) {
+          sessionStorage.setItem('access_token', responseData.token);
+        }
 
         if (responseData.role === 'vendor' && responseData.access === 'event') {
           userData.authorizedEventId = responseData.eventId ? parseInt(responseData.eventId, 10) : null;
@@ -57,9 +79,15 @@ export const useAuthStore = defineStore('auth', () => {
         throw new Error(error.response?.data?.error || '登录失败，请检查密码。');
     }
   }
-  function logout() {
+  async function logout() {
+    try {
+      await api.post('/auth/logout');
+    } catch (err) {
+      console.warn('Logout request failed, clearing client state anyway', err);
+    }
     user.value = null;
     sessionStorage.removeItem('user');
+    sessionStorage.removeItem('access_token');
     router.push('/');
   }
 

@@ -1,16 +1,21 @@
 <template>
   <div class="admin-event-stat">
     <header class="stat-header">
-      <h1>{{ pageTitle }}</h1>
+      <div>
+        <h1>{{ pageTitle }}</h1>
+        <p>查看当前展会的销售数据和统计分析。</p>
+      </div>
       <n-button
         v-if="statStore.stats && statStore.stats.summary.length > 0"
         class="download-btn"
         type="primary"
-        tertiary
-        size="small"
+        ghost
+        size="large"
         @click="downloadReport"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        <template #icon>
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        </template>
         下载 Excel 报告
       </n-button>
     </header>
@@ -29,80 +34,120 @@
     </div>
 
     <div v-else-if="statStore.stats" class="stats-content">
-      <n-card size="small" embedded>
-        <StatFilters
-          :product-options="productOptions"
-          :selected-product="selectedProduct"
-          :start-date="startDate"
-          :end-date="endDate"
-          :interval-minutes="intervalMinutes"
-          @update:selectedProduct="val => (selectedProduct = val)"
-          @update:startDate="val => (startDate = val)"
-          @update:endDate="val => (endDate = val)"
-          @update:intervalMinutes="val => (intervalMinutes = val)"
-          @change="applyFilters"
-        />
-      </n-card>
+      <section class="filter-section">
+        <div class="section-header" @click="isFilterExpanded = !isFilterExpanded">
+          <h2>数据筛选</h2>
+          <n-button text class="toggle-btn">
+            {{ isFilterExpanded ? '折叠' : '展开' }}
+          </n-button>
+        </div>
+        <transition name="expand">
+          <div v-show="isFilterExpanded" class="section-container">
+            <StatFilters
+              :product-options="productOptions"
+              :selected-product="selectedProduct"
+              :start-date="startDate"
+              :end-date="endDate"
+              :interval-minutes="intervalMinutes"
+              @update:selectedProduct="val => (selectedProduct = val)"
+              @update:startDate="val => (startDate = val)"
+              @update:endDate="val => (endDate = val)"
+              @update:intervalMinutes="val => (intervalMinutes = val)"
+              @change="applyFilters"
+            />
+          </div>
+        </transition>
+      </section>
 
       <!-- 关键数据总览 -->
-      <div class="summary-cards">
-        <n-card class="card" size="small" embedded>
-          <span class="label">总销售额</span>
-          <span class="value">{{ formatCurrency(statStore.stats.total_revenue) }}</span>
-        </n-card>
-        <n-card class="card" size="small" embedded>
-          <span class="label">总销售件数</span>
-          <span class="value">{{ totalItemsSold }}</span>
-        </n-card>
-        <n-card class="card" size="small" embedded>
-          <span class="label">销售品类数</span>
-          <span class="value">{{ productVarietyCount }}</span>
-        </n-card>
-      </div>
+      <section class="summary-section">
+        <div class="section-header" @click="isSummaryExpanded = !isSummaryExpanded">
+          <h2>关键数据总览</h2>
+          <n-button text class="toggle-btn">
+            {{ isSummaryExpanded ? '折叠' : '展开' }}
+          </n-button>
+        </div>
+        <transition name="expand">
+          <div v-show="isSummaryExpanded" class="section-container">
+            <div class="summary-cards">
+              <div class="summary-card">
+                <span class="label">总销售额</span>
+                <span class="value">{{ formatCurrency(statStore.stats.total_revenue) }}</span>
+              </div>
+              <div class="summary-card">
+                <span class="label">总销售件数</span>
+                <span class="value">{{ totalItemsSold }}</span>
+              </div>
+              <div class="summary-card">
+                <span class="label">销售品类数</span>
+                <span class="value">{{ productVarietyCount }}</span>
+              </div>
+            </div>
+          </div>
+        </transition>
+      </section>
 
       <!-- 销售趋势图 -->
-      <n-card class="chart-card" size="small" embedded>
-        <div class="chart-header">
-          <h3>销售额趋势</h3>
-          <span v-if="statStore.stats.timeseries?.length">{{ chartSubtitle }}</span>
+      <section class="chart-section">
+        <div class="section-header" @click="isChartExpanded = !isChartExpanded">
+          <h2>销售额趋势</h2>
+          <n-button text class="toggle-btn">
+            {{ isChartExpanded ? '折叠' : '展开' }}
+          </n-button>
         </div>
-        <SalesLineChart
-          v-if="statStore.stats.timeseries?.length"
-          :series="statStore.stats.timeseries"
-          :width="chartWidth"
-          :height="chartHeight"
-          :padding="padding"
-        />
-        <p v-else class="no-data">// 暂无趋势数据</p>
-      </n-card>
+        <transition name="expand">
+          <div v-show="isChartExpanded" class="section-container">
+            <div class="chart-info">
+              <span v-if="statStore.stats.timeseries?.length" class="chart-subtitle">{{ chartSubtitle }}</span>
+            </div>
+            <SalesLineChart
+              v-if="statStore.stats.timeseries?.length"
+              :series="statStore.stats.timeseries"
+              :width="chartWidth"
+              :height="chartHeight"
+              :padding="padding"
+            />
+            <p v-else class="no-data">// 暂无趋势数据</p>
+          </div>
+        </transition>
+      </section>
 
       <!-- 销售详情表格 -->
-      <n-card class="details-table-container" size="small" embedded>
-        <h3>销售数据表</h3>
-        <p v-if="!statStore.stats.summary.length" class="no-data">
-          // 无有效销售数据记录...
-        </p>
-        <n-table v-else size="small">
-          <thead>
-            <tr>
-              <th>制品编号</th>
-              <th>制品名</th>
-              <th class="text-right">单价</th>
-              <th class="text-center">销售量</th>
-              <th class="text-right">销售额</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="item in statStore.stats.summary" :key="item.product_id">
-              <td class="id-cell">#{{ item.product_code }}</td>
-              <td>{{ item.product_name }}</td>
-              <td class="text-right currency-cell">{{ formatCurrency(item.unit_price) }}</td>
-              <td class="text-center quantity-cell">{{ item.total_quantity }}</td>
-              <td class="text-right currency-cell">{{ formatCurrency(item.total_revenue_per_item) }}</td>
-            </tr>
-          </tbody>
-        </n-table>
-      </n-card>
+      <section class="table-section">
+        <div class="section-header" @click="isTableExpanded = !isTableExpanded">
+          <h2>销售数据表</h2>
+          <n-button text class="toggle-btn">
+            {{ isTableExpanded ? '折叠' : '展开' }}
+          </n-button>
+        </div>
+        <transition name="expand">
+          <div v-show="isTableExpanded" class="section-container">
+            <p v-if="!statStore.stats.summary.length" class="no-data">
+              // 无有效销售数据记录...
+            </p>
+            <n-table v-else size="small">
+              <thead>
+                <tr>
+                  <th>制品编号</th>
+                  <th>制品名</th>
+                  <th class="text-right">单价</th>
+                  <th class="text-center">销售量</th>
+                  <th class="text-right">销售额</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in statStore.stats.summary" :key="item.product_id">
+                  <td class="id-cell">#{{ item.product_code }}</td>
+                  <td>{{ item.product_name }}</td>
+                  <td class="text-right currency-cell">{{ formatCurrency(item.unit_price) }}</td>
+                  <td class="text-center quantity-cell">{{ item.total_quantity }}</td>
+                  <td class="text-right currency-cell">{{ formatCurrency(item.total_revenue_per_item) }}</td>
+                </tr>
+              </tbody>
+            </n-table>
+          </div>
+        </transition>
+      </section>
     </div>
   </div>
 </template>
@@ -127,6 +172,10 @@ const intervalMinutes = ref(60);
 const chartWidth = 800;
 const chartHeight = 320;
 const padding = 48;
+const isFilterExpanded = ref(true);
+const isSummaryExpanded = ref(true);
+const isChartExpanded = ref(true);
+const isTableExpanded = ref(true);
 
 const pageTitle = computed(() => statStore.stats?.event_name ? `${statStore.stats.event_name} - 数据统计` : '数据统计');
 const totalItemsSold = computed(() => statStore.stats?.summary.reduce((sum, item) => sum + item.total_quantity, 0) || 0);
@@ -173,7 +222,19 @@ async function downloadReport() {
 
   try {
     console.log('开始请求 Excel 报告:', statStore.downloadUrl);
-    const response = await fetch(statStore.downloadUrl, { credentials: 'include' });
+    
+    // 从 sessionStorage 获取 token 并添加到请求头
+    const token = sessionStorage.getItem('access_token');
+    const headers = { 'credentials': 'include' };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    const response = await fetch(statStore.downloadUrl, { 
+      credentials: 'include',
+      headers: headers
+    });
+    
     if (!response.ok) {
       throw new Error(`下载失败: ${response.status}`);
     }
@@ -271,43 +332,101 @@ watch(() => route.params.id, (newEventId) => {
 .stat-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2.5rem;
+  align-items: flex-start;
+  margin-bottom: 2rem;
   padding-bottom: 1rem;
   border-bottom: 1px solid var(--border-color);
 }
 
-h1 {
-  font-size: 2rem;
-  font-weight: 300; /* 更纤细的字体 */
+.stat-header h1 {
   color: var(--accent-color);
-  letter-spacing: 1px;
-  text-transform: uppercase;
   margin: 0;
+  font-size: 1.75rem;
 }
 
-.btn {
-  padding: 0.75rem 1.5rem;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  font-weight: bold;
-  cursor: pointer;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  transition: all 0.2s ease-in-out;
+.stat-header p {
+  color: var(--text-muted);
+  margin-top: 0.5rem;
+  margin-bottom: 0;
 }
 
 .download-btn {
-  background-color: transparent;
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 0.75rem 1.5rem;
+  transition: all 0.2s ease;
+}
+
+.download-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(3, 218, 198, 0.3);
+}
+
+/* 统一区块样式 */
+.filter-section,
+.summary-section,
+.chart-section,
+.table-section {
+  margin-bottom: 2rem;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  padding: 0.75rem 1rem;
+  background: var(--card-bg-color);
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  margin-bottom: 0.5rem;
+}
+
+.section-header:hover {
+  background: var(--hover-bg-color, var(--card-bg-color));
   border-color: var(--accent-color);
+}
+
+.section-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: var(--accent-color);
+  font-weight: 600;
+}
+
+.toggle-btn {
+  font-size: 0.9rem;
+  padding: 0.25rem 0.75rem;
+  min-width: auto;
   color: var(--accent-color);
 }
-.download-btn:hover {
-  background-color: var(--accent-color-light);
-  box-shadow: 0 0 15px var(--accent-color-shadow);
-  transform: translateY(-2px);
+
+/* 展开/折叠动画 */
+.expand-enter-active,
+.expand-leave-active {
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.expand-enter-from,
+.expand-leave-to {
+  opacity: 0;
+  max-height: 0;
+}
+
+.expand-enter-to,
+.expand-leave-from {
+  opacity: 1;
+  max-height: 3000px;
+}
+
+.section-container {
+  background: var(--card-bg-color);
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  padding: 1.5rem;
 }
 
 .loading-indicator, .error-message {
@@ -338,9 +457,40 @@ h1 {
 
 .summary-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 3rem;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.summary-card {
+  background: linear-gradient(135deg, var(--card-bg-color) 0%, var(--bg-color) 100%);
+  padding: 1.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.summary-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-color: var(--accent-color);
+}
+
+.summary-card .label {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.summary-card .value {
+  font-size: 2rem;
+  font-weight: 600;
+  color: var(--accent-color);
+  line-height: 1;
 }
 
 .filters {
@@ -370,20 +520,13 @@ h1 {
   padding: 0.65rem 0.75rem;
 }
 
-.chart-card {
-  background-color: var(--card-bg-color);
-  padding: 1.5rem;
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  margin-bottom: 2rem;
+.chart-info {
+  margin-bottom: 1rem;
 }
 
-.chart-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  margin-bottom: 1rem;
-  color: var(--primary-text-color);
+.chart-subtitle {
+  color: var(--text-muted);
+  font-size: 0.9rem;
 }
 
 .chart-wrapper {
@@ -455,60 +598,7 @@ svg {
   color: var(--primary-text-color);
 }
 
-.card {
-  background-color: var(--card-bg-color);
-  padding: 2rem;
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  text-align: center;
-  position: relative;
-  overflow: hidden;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-.card:hover {
-  transform: translateY(-5px);
-  box-shadow: var(--shadow-md);
-}
-.card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 3px;
-  background: var(--accent-color);
-  opacity: 0.7;
-}
 
-.card .label {
-  font-size: 1rem;
-  color: var(--secondary-text-color);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 0.75rem;
-  display: block;
-}
-
-.card .value {
-  font-size: 2.5rem;
-  font-weight: 500;
-  color: var(--primary-text-color);
-  line-height: 1;
-}
-
-.details-table-container {
-  background-color: var(--card-bg-color);
-  padding: 2rem;
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-}
-.details-table-container h3 {
-  margin-top: 0;
-  margin-bottom: 1.5rem;
-  font-weight: 400;
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 1rem;
-}
 
 table {
   width: 100%;
@@ -558,5 +648,134 @@ tbody td {
   padding: 3rem;
   text-align: center;
   font-family: 'Courier New', Courier, monospace;
+}
+
+/* 响应式布局 */
+@media (max-width: 768px) {
+  .admin-event-stat {
+    padding: 1rem;
+  }
+
+  .stat-header {
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.75rem;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .stat-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .stat-header p {
+    font-size: 0.9rem;
+  }
+
+  .download-btn {
+    align-self: flex-start;
+  }
+
+  .section-container {
+    padding: 1rem;
+  }
+
+  .summary-cards {
+    gap: 0.75rem;
+  }
+
+  .summary-card {
+    padding: 1rem;
+  }
+
+  .summary-card .label {
+    font-size: 0.85rem;
+  }
+
+  .summary-card .value {
+    font-size: 1.5rem;
+  }
+
+  th, td {
+    padding: 0.75rem 0.5rem;
+  }
+
+  .no-data {
+    padding: 2rem 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-event-stat {
+    padding: 0.75rem;
+  }
+
+  .stat-header {
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .stat-header h1 {
+    font-size: 1.25rem;
+  }
+
+  .stat-header p {
+    font-size: 0.85rem;
+  }
+
+  .section-header {
+    padding: 0.6rem 0.75rem;
+  }
+
+  .section-header h2 {
+    font-size: 1.1rem;
+  }
+
+  .section-container {
+    padding: 0.75rem;
+  }
+
+  .summary-cards {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .summary-card {
+    padding: 0.75rem;
+  }
+
+  .summary-card .label {
+    font-size: 0.8rem;
+  }
+
+  .summary-card .value {
+    font-size: 1.25rem;
+  }
+
+  .download-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  th, td {
+    padding: 0.5rem 0.25rem;
+    font-size: 0.85rem;
+  }
+
+  thead th {
+    font-size: 0.75rem;
+  }
+
+  .quantity-cell {
+    font-size: 1rem;
+  }
+
+  .no-data {
+    padding: 1.5rem 0.75rem;
+    font-size: 0.85rem;
+  }
+
+  .chart-subtitle {
+    font-size: 0.8rem;
+  }
 }
 </style>

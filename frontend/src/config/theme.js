@@ -86,21 +86,25 @@ export const darkTheme = {
     }
   }
 };
-// 浅色主题配置（优化版）
 export const lightTheme = {
   // === 基础颜色 ===
   background: {
-    primary: '#FFFFFF',      // 页面主背景（纯白）
-    secondary: '#F5F7FA',    // 次要背景（极淡的冷灰，用于页面底色）
-    card: '#FFFFFF',         // 卡片背景
-    elevated: '#FFFFFF',     // 悬浮层背景
-    input: '#FFFFFF',        // 输入框背景（通常与边框配合）
+    // 关键修改：主背景不再是纯白，而是带有极淡蓝紫调的冷灰，护眼且显高级
+    primary: '#F2F5F8',      
+    // 次要背景（侧边栏/导航栏）：纯白，与主背景形成区分
+    secondary: '#FFFFFF',    
+    // 卡片背景：纯白，在冷灰主背景上会很突出
+    card: '#FFFFFF',         
+    // 悬浮层：纯白
+    elevated: '#FFFFFF',     
+    // 输入框：极淡的灰，让输入框在白卡片上有这一层淡淡的底色，不纯靠边框
+    input: '#F9FAFB',        
   },
 
   // === 文本颜色 ===
   text: {
-    primary: '#1F2937',      // 主文本（深炭灰，比纯黑更护眼）
-    secondary: '#4B5563',    // 次要文本（冷灰）
+    primary: '#111827',      // 加深：接近纯黑的深灰（Tailwind Gray 900），提高阅读清晰度
+    secondary: '#4B5563',    // 次要文本（Gray 600）
     tertiary: '#9CA3AF',     // 三级文本
     disabled: '#D1D5DB',     // 禁用
     muted: '#6B7280',        // 弱化
@@ -109,69 +113,73 @@ export const lightTheme = {
   },
 
   // === 主题色 ===
-  // 注意：原先的 #03DAC6 在白底上太亮看不清，这里加深了颜色
   primary: {
-    base: '#00A99D',         // 主色（加深的青色，更稳重）
-    hover: '#00BDB0',        // 悬停（稍亮）
-    pressed: '#008F85',      // 按下（稍深）
-    dark: '#006960',         // 深色变体
-    light: 'rgba(0, 169, 157, 0.1)', // 浅色背景（用于选中态）
+    // 稍微调深一点点的青色，在亮色背景下对比度更高
+    base: '#00A99D',         
+    hover: '#00BDB0',        
+    pressed: '#008F85',      
+    dark: '#006960',         
+    // 选中态背景色：加深一点不透明度，让选中状态更明显
+    light: 'rgba(0, 169, 157, 0.12)', 
   },
 
   // === 状态颜色 ===
-  // 使用了稍微柔和一点的现代色盘
+  // 保持你原有的现代色盘，这些颜色在白底上表现良好
   status: {
-    success: '#10B981',      // 翡翠绿
+    success: '#10B981',      
     successHover: '#059669',
-    warning: '#F59E0B',      // 琥珀色
+    warning: '#F59E0B',      
     warningAlt: '#D97706',
     warningHover: '#B45309',
-    error: '#EF4444',        // 现代红
+    error: '#EF4444',        
     errorAlt: '#DC2626',
     errorHover: '#B91C1C',
-    info: '#3B82F6',         // 科技蓝
+    info: '#3B82F6',         
     infoHover: '#2563EB',
-    cancelled: '#9CA3AF',    // 灰色
+    cancelled: '#9CA3AF',    
   },
 
   // === 边框颜色 ===
   border: {
-    base: '#E5E7EB',         // 极浅的边框（Tailwind Gray 200）
-    hover: '#D1D5DB',        // 悬停加深
-    focus: '#00A99D',        // 聚焦时跟随主色
-    light: '#F3F4F6',        // 分割线/极浅
-    dark: '#9CA3AF',         // 深色边框
-    divider: '#F3F4F6',      // 内容分割线（非常淡，减少视觉干扰）
+    // 关键修改：加深基础边框颜色。
+    // 原来的 E5E7EB 在某些显示器上几乎看不见，改为 E2E4E8
+    base: '#E2E4E8',         
+    hover: '#9CA3AF',        // 悬停时明显变深
+    focus: '#00A99D',        // 聚焦颜色
+    light: '#F3F4F6',        // 极浅分割线
+    dark: '#6B7280',         // 深色边框
+    divider: '#EEF0F2',      // 内容分割线，比背景稍深
   },
 
   // === 特殊颜色 ===
   special: {
-    overlay: 'rgba(0, 0, 0, 0.4)',     // 遮罩层
-    shadow: 'rgba(0, 0, 0, 0.08)',     // 阴影（浅色模式阴影要淡）
-    tooltipBg: 'rgba(31, 41, 55, 0.9)',// Tooltip 用深色背景对比度更好
-    highlight: '#FEF3C7',              // 高亮背景（淡黄）
-    delete: '#EF4444',                 // 删除红
+    overlay: 'rgba(0, 0, 0, 0.4)',     
+    // 关键修改：加深阴影颜色。
+    // 浅色模式主要靠阴影区分层级，0.08 太淡了，改为 0.1
+    shadow: 'rgba(0, 0, 0, 0.1)',      
+    tooltipBg: '#1F2937',              // Tooltip 保持深色背景
+    highlight: '#FEF3C7',              
+    delete: '#EF4444',                 
   },
 
   // === 组件特定颜色 ===
   components: {
     alert: {
-      bg: '#F9FAFB',         // Alert 默认背景（极淡灰）
+      bg: '#F3F8FC',         // 给 Alert 一个极淡的蓝色/灰色底，不要纯白
       info: '#3B82F6',
       success: '#10B981',
       warning: '#F59E0B',
       error: '#EF4444',
     },
     button: {
-      secondary: '#F3F4F6',     // 次要按钮背景（淡灰，类似 Github 按钮）
-      secondaryHover: '#E5E7EB', // 次要按钮悬停
+      secondary: '#F3F4F6',      // 次要按钮背景
+      secondaryHover: '#E5E7EB', // 悬停加深
     },
     order: {
-      completed: '#E5E7EB',     // 进度条背景
+      completed: '#F3F4F6',     
     }
   }
 };
-
 // 生成 CSS 变量
 export function generateCSSVariables(theme) {
   return `
