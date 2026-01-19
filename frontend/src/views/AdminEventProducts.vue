@@ -70,8 +70,22 @@
 
         <form @submit.prevent="handleAddProduct" class="add-product-form">
           <n-input v-model:value="addProductData.product_code" placeholder="商品编号 (可点击上方预览填充)" clearable required />
-          <n-input-number v-model:value="addProductData.initial_stock" placeholder="初始库存" :min="0" required ref="stockInputRef" />
-          <n-input-number v-model:value="addProductData.price" placeholder="展会售价 (可选)" :min="0" :step="0.01" />
+          <n-input-number 
+            v-model:value="addProductData.initial_stock" 
+            placeholder="初始库存" 
+            :min="0" 
+            :precision="0" 
+            :show-button="true"
+            required 
+            ref="stockInputRef" 
+          />
+          <n-input-number 
+            v-model:value="addProductData.price" 
+            placeholder="展会售价 (可选)" 
+            :min="0" 
+            :precision="2" 
+            :step="0.01" 
+          />
           <n-button type="primary" attr-type="submit" :disabled="isAdding">
             {{ isAdding ? '上架中...' : '上架' }}
           </n-button>
@@ -142,11 +156,24 @@
         <form v-if="editableProduct" class="edit-form" @submit.prevent="handleUpdate">
           <div class="form-group">
             <label>展会售价 (¥):</label>
-            <n-input-number v-model:value="editableProduct.price" :min="0" :step="0.01" required />
+            <n-input-number 
+              v-model:value="editableProduct.price" 
+              :min="0" 
+              :precision="2" 
+              :step="0.01" 
+              :show-button="true"
+              required 
+            />
           </div>
           <div class="form-group">
             <label>初始库存:</label>
-            <n-input-number v-model:value="editableProduct.initial_stock" :min="0" required />
+            <n-input-number 
+              v-model:value="editableProduct.initial_stock" 
+              :min="0" 
+              :precision="0" 
+              :show-button="true"
+              required 
+            />
           </div>
           <p v-if="editError" class="error-message">{{ editError }}</p>
         </form>
@@ -231,6 +258,35 @@ async function handleAddProduct() {
   isAdding.value = true;
   addError.value = '';
   try {
+    // 验证输入
+    if (!addProductData.value.product_code || !addProductData.value.product_code.trim()) {
+      addError.value = '请输入商品编号';
+      isAdding.value = false;
+      return;
+    }
+    
+    if (addProductData.value.initial_stock === null || addProductData.value.initial_stock === undefined) {
+      addError.value = '请输入初始库存';
+      isAdding.value = false;
+      return;
+    }
+    
+    // 确保库存是整数
+    if (!Number.isInteger(addProductData.value.initial_stock) || addProductData.value.initial_stock < 0) {
+      addError.value = '初始库存必须是非负整数';
+      isAdding.value = false;
+      return;
+    }
+    
+    // 验证价格（如果提供）
+    if (addProductData.value.price !== null && addProductData.value.price !== undefined && addProductData.value.price !== '') {
+      if (addProductData.value.price < 0) {
+        addError.value = '价格不能为负数';
+        isAdding.value = false;
+        return;
+      }
+    }
+    
     const dataToSend = { ...addProductData.value };
     if (dataToSend.price === null || dataToSend.price === '') {
       delete dataToSend.price;
@@ -267,6 +323,21 @@ async function handleUpdate() {
   editError.value = '';
   try {
     const { id, price, initial_stock } = editableProduct.value;
+    
+    // 验证价格
+    if (price === null || price === undefined || price < 0) {
+      editError.value = '请输入有效的售价（不能为负数）';
+      isUpdating.value = false;
+      return;
+    }
+    
+    // 验证库存必须是整数
+    if (!Number.isInteger(initial_stock) || initial_stock < 0) {
+      editError.value = '初始库存必须是非负整数';
+      isUpdating.value = false;
+      return;
+    }
+    
     await eventDetailStore.updateEventProduct(id, { price, initial_stock });
     closeEditModal();
   } catch (error) {
@@ -419,37 +490,67 @@ function getProductLabel(name) {
   border-spacing: 0;
   text-align: left;
   font-size: 0.95rem;
+  min-width: 700px;
 }
+
 .product-table th {
   padding: 12px 16px;
   background-color: var(--card-bg-color);
   color: var(--primary-text-color);
   font-weight: 600;
   border-bottom: 2px solid var(--accent-color);
+  white-space: nowrap;
 }
+
 .product-table td {
   padding: 12px 16px;
   border-bottom: 1px solid var(--border-color);
   color: var(--text-placeholder);
   vertical-align: middle;
 }
+
+.product-table tbody tr {
+  transition: background-color 0.2s ease-in-out;
+}
+
 .product-table tbody tr:hover {
   background-color: var(--accent-color-light);
 }
-.product-table th:first-child, .product-table td:first-child { padding-left: 0; }
-.product-table th:last-child, .product-table td:last-child { text-align: right; padding-right: 0; }
 
-.column-preview { width: 80px; }
+.product-table th:first-child,
+.product-table td:first-child {
+  padding-left: 0;
+}
 
-.preview-img {
-  width: 50px;
-  height: 50px;
-  object-fit: cover;
+.product-table th:last-child,
+.product-table td:last-child {
+  text-align: right;
+  padding-right: 0;
+}
+
+.column-preview {
+  width: 60px;
+}
 
 .preview-img-container {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.preview-img {
+  width: 50px;
+  height: 50px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  vertical-align: middle;
+}
+
+.preview-img :deep(img) {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .preview-img-placeholder {
@@ -466,11 +567,6 @@ function getProductLabel(name) {
   font-weight: 600;
   text-align: center;
   overflow: hidden;
-}
-
-  border-radius: 4px;
-  border: 1px solid var(--border-color);
-  vertical-align: middle;
 }
 .no-img {
   display: inline-block;
@@ -709,11 +805,6 @@ function getProductLabel(name) {
     padding: 0.3rem;
   }
 
-  .preview-item-img {
-    width: 50px;
-    height: 50px;
-  }
-
   .preview-item-name {
     font-size: 0.8rem;
     width: 90px;
@@ -735,19 +826,22 @@ function getProductLabel(name) {
 
   .product-table {
     font-size: 0.85rem;
-    min-width: 600px;
+    min-width: 650px;
   }
 
   .product-table th,
   .product-table td {
-    padding: 8px;
+    padding: 10px 12px;
+  }
+
+  .column-preview {
+    width: 50px;
   }
 
   .preview-img,
-  .no-img {
-    width: 40px;
-    height: 40px;
-    line-height: 40px;
+  .preview-img-placeholder {
+    width: 45px;
+    height: 45px;
   }
 }
 
@@ -800,20 +894,15 @@ function getProductLabel(name) {
     height: 40px;
   }
 
-  .preview-item-name {
-    font-size: 0.75rem;
-   
-
-  .preview-item-img {
-    width: 40px;
-    height: 40px;
-  }
-
   .preview-item-img-placeholder {
     width: 40px;
     height: 40px;
     font-size: 0.7rem;
-  } width: 70px;
+  }
+
+  .preview-item-name {
+    font-size: 0.75rem;
+    width: 70px;
   }
 
   .preview-item-code,
@@ -828,24 +917,27 @@ function getProductLabel(name) {
 
   .product-table {
     font-size: 0.75rem;
-    min-width: 550px;
+    min-width: 600px;
   }
 
   .product-table th,
   .product-table td {
-    padding: 6px 4px;
+    padding: 8px 10px;
   }
 
   .product-table th {
     font-size: 0.7rem;
   }
 
+  .column-preview {
+    width: 40px;
+  }
+
   .preview-img,
-  .no-img {
+  .preview-img-placeholder {
     width: 35px;
     height: 35px;
-    line-height: 35px;
-    font-size: 0.7rem;
+    font-size: 0.65rem;
   }
 
   .edit-form .form-group {

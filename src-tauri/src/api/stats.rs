@@ -590,7 +590,7 @@ fn check_read_permission(claims: &Claims, event_id: i64) -> Result<(), (StatusCo
         println!("Admin access granted");
         return Ok(());
     }
-    
+
     // 摊主需要检查 access 权限
     if claims.role == "vendor" {
         if claims.access == "all" || claims.event_id == Some(event_id) {
@@ -600,7 +600,7 @@ fn check_read_permission(claims: &Claims, event_id: i64) -> Result<(), (StatusCo
         // 摊主权限不足
         return Err((StatusCode::FORBIDDEN, "Access denied"));
     }
-    
+
     // 未知角色
     Err((StatusCode::FORBIDDEN, "Access denied"))
 }

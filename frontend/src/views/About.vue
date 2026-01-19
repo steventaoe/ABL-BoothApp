@@ -1,6 +1,6 @@
 <template>
   <div class="about-container">
-    <n-card :bordered="false" class="main-card" size="huge">
+    <n-card :bordered="false" class="main-card" size="large">
       
       <!-- 1. 头部 Header -->
       <div class="header-section">
@@ -11,7 +11,7 @@
           class="logo"
           bordered
         />
-        <h1 class="app-title">漫展出摊机</h1>
+        <h1 class="app-title">摊盒 Booth-Kernel</h1>
         <p class="app-subtitle">基于 Tauri 构建的现代化出摊一体工具，旨在改进同人摊主工作流</p>
         
         <n-flex justify="center" size="small" class="tag-row">
@@ -50,7 +50,7 @@
             <span class="text-muted">开发 Flask+Vue 的原型并部署在社团云服务器，确立了核心工作流。</span>
           </n-timeline-item>
           <n-timeline-item type="warning" title="发布: Nuitka打包版" time="2025年11月">
-            <span class="text-muted">尝试本地化打包分发，但受限于 Python 后端体积与平台限制难以分发。</span>
+            <span class="text-muted">尝试朴素地把Flask给打包，但受限于 Python 后端体积与平台限制难以广泛分发。</span>
           </n-timeline-item>
           <n-timeline-item type="success" title="现在：Tauri 本地应用" time="2025年12月-至今">
             <span class="text-muted">使用 Rust 重写后端，Tauri v2 构建，实现 Win/Android 双平台高性能体验。</span>
@@ -62,7 +62,7 @@
       <section class="section">
         <div class="section-header">
           <n-icon size="24" color="#2080f0"><HardwareChipOutline /></n-icon>
-          <h2>核心功能</h2>
+          <h2>核心特征</h2>
         </div>
         <n-grid x-gap="16" y-gap="16" cols="1 s:1 m:3" responsive="screen">
           <n-grid-item v-for="feature in features" :key="feature.title">
@@ -100,7 +100,7 @@
       <section class="section">
         <div class="section-header">
           <n-icon size="24" color="#d03050"><HeartOutline /></n-icon>
-          <h2>致谢 & 鸣谢</h2>
+          <h2>致谢</h2>
         </div>
         <n-grid x-gap="12" y-gap="12" cols="1 s:2" responsive="screen">
           <n-grid-item v-for="item in credits" :key="item.title">
@@ -121,7 +121,7 @@
           <h2>指南 & 声明</h2>
         </div>
         
-        <n-collapse arrow-placement="right" :default-expanded-names="['free','privacy', 'qa']">
+        <n-collapse arrow-placement="right" :default-expanded-names="['free','privacy']">
            <n-collapse-item name="free">
             <template #header>
               <n-flex align="center" size="small">
@@ -153,41 +153,11 @@
                 <strong>本地优先架构</strong><br/>
                 你的所有数据（库存、账目、图片）仅存储于设备的 SQLite 数据库中，软件除自动更新检查外不进行任何网络通信。
               </n-alert>
-              <p class="text-muted">我们承诺这个项目尽可能允许同好本地原子化部署，无需中心化的服务器，也不会搜集任何隐私数据。</p>
+              <p class="text-muted">我们承诺这个项目会尽可能地允许同好本地原子化部署，无需中心服务器，也不搜集任何隐私数据。</p>
             </div>
           </n-collapse-item>
 
-          <n-collapse-item name="qa">
-            <template #header>
-               <n-flex align="center" size="small">
-                <n-icon color="#2080f0"><WifiOutline /></n-icon>
-                <span>常见问题：</span>
-               </n-flex>
-            </template>
-            <div class="collapse-inner">
-              <p class="qa-q">❓ 手机扫码后网页无法加载 / 白屏？</p>
-              <ul class="qa-list">
-                <li><strong>检查网络</strong>：确保主机与扫码设备在同一 Wi-Fi 下(校园网等大型网络环境可能不允许)。</li>
-                <li><strong>防火墙</strong>：Windows 请检查是否放行了应用端口。</li>
-                <li class="highlight-item">
-                  <strong>✨ 推荐方案</strong>：由手机/平板开热点组建局域网，稳定且不耗流量。
-                </li>
-              </ul>
-              <p class="qa-q">❓ 我该如何上手使用？</p>
-              <ul class="qa-list">
-                <li><strong>配置全局商品</strong>：在“全局商品库”页面根据社团制品信息，添加或修改商品条目。</li>
-                <li><strong>创建展会</strong>：在“展会管理”页面创建新的展会，填写好展会信息和收款码图片。</li>
-                <li><strong>配置展会商品</strong>：进入展会页面，配置展会贩卖商品的种类、备货量和价格。</li>
-                <li><strong>开启和贩卖</strong>：在“展会管理”页面设置展会状态，开始销售，把一个打开了“顾客视图”的设备(最好为平板)摆放在摊位前，即可进行出摊。</li>
-                <li><strong>检查和备货</strong>：摊主用一个连接且打开“摊主视图”的设备检查当前展会的订单，并完成订单，进行配货。</li>
-                <li><strong>结算</strong>：结束后可以在展会页面查看该展会的销售统计，并导出一个总结性质的Excel文档。</li>
-              </ul>
-              <p class="qa-q">❓ 我的数据没能同步？</p>
-              <ul class="qa-list">
-                <li><strong>单一主机</strong>：我们需要的是一台设备运行程序，其它设备扫码局域网连接，这样才能保证数据同步。</li>
-              </ul>
-            </div>
-          </n-collapse-item>
+          
 
           <n-collapse-item name="disclaimer">
             <template #header>
@@ -211,7 +181,7 @@
       <section class="footer-section">
         <n-flex vertical align="center" size="large">
           <div class="dev-info">
-            <n-avatar round size="large" color="#eee">R</n-avatar>
+            <img src="/avatar.png" alt="Renko_1055" class="author-avatar" />
             <div class="text-center">
               <div class="author-name">Renko_1055</div>
               <div class="author-title">境界景观学会</div>
@@ -225,6 +195,14 @@
             <n-button secondary type="info" size="small" @click="copyLink('https://abl.secret-sealing.club', '官网')">
               <template #icon><n-icon><GlobeOutline /></n-icon></template> 官网
             </n-button>
+            <n-popover trigger="hover">
+              <template #trigger>
+                <n-button secondary type="primary" size="small" @click="copyLink('1074201740', 'QQ群号')">
+                  <template #icon><n-icon><ChatbubblesOutline /></n-icon></template> 加入用户反馈QQ群
+                </n-button>
+              </template>
+              <span>群号：1074201740</span>
+            </n-popover>
             <n-popover trigger="hover">
               <template #trigger>
                 <n-button secondary type="success" size="small" @click="copyLink('contact@secret-sealing.club', '邮箱')">
@@ -262,11 +240,12 @@ import {
   NTimeline, NTimelineItem, NFlex, NCollapse, NCollapseItem, NAlert, useMessage, useDialog, NBlockquote
 } from 'naive-ui'
 import api from '@/services/api'
+import { copyLink as copyLinkUtil } from '@/services/clipboard'
 import { 
   BookOutline, HardwareChipOutline, CodeSlashOutline, DocumentTextOutline,
   StorefrontOutline, LogoGithub, GlobeOutline, MailOutline, LogoWindows,
   LogoAndroid, LogoTux, PhonePortraitOutline, WifiOutline, TrashOutline,
-  HeartOutline, ShieldCheckmarkOutline, AlertCircleOutline, GiftOutline 
+  HeartOutline, ShieldCheckmarkOutline, AlertCircleOutline, GiftOutline, ChatbubblesOutline 
 } from '@vicons/ionicons5'
 
 const message = useMessage()
@@ -284,30 +263,31 @@ const features = [
     title: '离线优先',
     icon: WifiOutline,
     color: '#18a058',
-    desc: '基于本地 SQLite和局域网部署，无论漫展现场信号如何，记账与库存扣减永远流畅。'
+    desc: '基于本地 SQLite 和局域网部署，无论漫展现场信号如何，记账与库存扣减永远流畅。'
   },
   {
     title: '自动化经营',
     icon: StorefrontOutline,
     color: '#f0a020',
-    desc: '自动算总价、弹收款码、生成 Excel 报表。您只需无脑递货，可专注于和同好交流。'
+    desc: '自动算总价、弹收款码、生成 Excel 报表。摊主只需无脑递货，可专注于和同好交流。'
   }
 ]
 
 const credits = [
   { title: '💻 同人社团', desc: '该项目由同人社团 境界景观学会 开发和维护。' },
-  { title: '👥 内测者', desc: '感谢在混乱展会现场忍受 Bug 的内测摊主们。' },
-  { title: '🤖 AI 助手', desc: '感谢 Gemini 3.0 Pro 和 Github Copilot 辅助开发。' },
+  { title: '👥 内测者', desc: '感谢所有参与该项目内测的摊主们，你们的反馈至关重要。' },
+  { title: '🤖 AI 助手', desc: '感谢 Gemini 3.0 Pro 和 Github Copilot 辅助开发项目原型。' },
   { title: '🎮 支持者', desc: '感谢东方幻想指南的朋友们对该项目开发的支持。' }
 ]
 
-// 交互逻辑
+// 统一使用共享 clipboard 工具
 const copyLink = async (url: string, label: string) => {
   try {
-    await navigator.clipboard.writeText(url)
+    await copyLinkUtil(url)
     message.success(`已复制${label}链接`)
   } catch (err) {
-    message.error(`复制失败`)
+    console.error('复制失败:', err)
+    message.error(`复制${label}失败，请检查权限`)
   }
 }
 
@@ -391,6 +371,7 @@ const resetDatabase = () => {
 /* 底部区域 */
 .footer-section { margin-top: 48px; text-align: center; }
 .dev-info { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.author-avatar { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15); }
 .author-name { font-weight: 700; font-size: 1.1rem; }
 .author-title { font-size: 0.85rem; color: var(--text-secondary); }
 .copyright { font-size: 0.8rem; color: var(--text-secondary); font-family: monospace; }

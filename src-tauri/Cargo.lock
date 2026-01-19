@@ -3,6 +3,41 @@
 version = 4
 
 [[package]]
+name = "BoothKernel"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "bcrypt",
+ "chrono",
+ "dirs",
+ "include_dir",
+ "jsonwebtoken",
+ "local-ip-address",
+ "mime_guess",
+ "rust_xlsxwriter",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-app",
+ "tauri-plugin-dialog",
+ "tauri-plugin-fs",
+ "tauri-plugin-http",
+ "tauri-plugin-opener",
+ "tauri-plugin-os",
+ "tauri-plugin-shell",
+ "tauri-plugin-updater",
+ "tokio",
+ "tower 0.4.13",
+ "tower-http 0.5.2",
+ "urlencoding",
+ "uuid",
+ "walkdir",
+ "zip 0.6.6",
+]
+
+[[package]]
 name = "adler2"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -402,40 +437,6 @@ checksum = "e412e2cd0f2b2d93e02543ceae7917b3c70331573df19ee046bcbc35e45e87d7"
 dependencies = [
  "byteorder",
  "cipher",
-]
-
-[[package]]
-name = "booth-tool"
-version = "0.1.0"
-dependencies = [
- "axum",
- "bcrypt",
- "chrono",
- "dirs",
- "include_dir",
- "jsonwebtoken",
- "local-ip-address",
- "mime_guess",
- "rust_xlsxwriter",
- "serde",
- "serde_json",
- "sqlx",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
- "tauri-plugin-fs",
- "tauri-plugin-http",
- "tauri-plugin-opener",
- "tauri-plugin-os",
- "tauri-plugin-shell",
- "tauri-plugin-updater",
- "tokio",
- "tower 0.4.13",
- "tower-http 0.5.2",
- "urlencoding",
- "uuid",
- "walkdir",
- "zip 0.6.6",
 ]
 
 [[package]]
@@ -5164,6 +5165,15 @@ dependencies = [
  "tauri-utils",
  "toml 0.9.11+spec-1.1.0",
  "walkdir",
+]
+
+[[package]]
+name = "tauri-plugin-app"
+version = "2.0.0-alpha.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b55e543dfb0e446657c7ceaccf2f3d7ced42b6cc70b44b227b1981886f00dccd"
+dependencies = [
+ "tauri",
 ]
 
 [[package]]

@@ -39,9 +39,9 @@ pub struct Claims {
     pub exp: usize, // 过期时间戳
 }
 
-// 1. 密码哈希
+// 1. 密码哈希（本地应用使用 cost=6 以提升性能）
 pub fn hash_password(password: &str) -> String {
-    hash(password, DEFAULT_COST).expect("Failed to hash password")
+    hash(password, 6).expect("Failed to hash password")
 }
 
 // 2. 密码验证

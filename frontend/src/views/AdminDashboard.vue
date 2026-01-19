@@ -49,7 +49,7 @@
                       <qrcode-vue :value="serverInfo.order_url" :size="180" level="M" class="qr-code"/>
                     </div>
                     <div class="qr-url">{{ serverInfo.order_url }}</div>
-                    <n-button type="primary" size="small" @click="copyToClipboard(serverInfo.order_url)" class="copy-btn">
+                    <n-button type="primary" size="small" @click="handleCopy(serverInfo.order_url, '顾客入口')" class="copy-btn">
                       点击复制链接
                     </n-button>
                   </div>
@@ -59,7 +59,7 @@
                       <qrcode-vue :value="serverInfo.vendor_url" :size="180" level="M" class="qr-code"/>
                     </div>
                     <div class="qr-url">{{ serverInfo.vendor_url }}</div>
-                    <n-button type="primary" size="small" @click="copyToClipboard(serverInfo.vendor_url)" class="copy-btn">
+                    <n-button type="primary" size="small" @click="handleCopy(serverInfo.vendor_url, '摊主入口')" class="copy-btn">
                       点击复制链接
                     </n-button>
                   </div>
@@ -69,7 +69,7 @@
                       <qrcode-vue :value="serverInfo.admin_url" :size="180" level="M" class="qr-code"/>
                     </div>
                     <div class="qr-url">{{ serverInfo.admin_url }}</div>
-                    <n-button type="primary" size="small" @click="copyToClipboard(serverInfo.admin_url)" class="copy-btn">
+                    <n-button type="primary" size="small" @click="handleCopy(serverInfo.admin_url, '管理员入口')" class="copy-btn">
                       点击复制链接
                     </n-button>
                   </div>
@@ -141,6 +141,7 @@ import ThemeSetting from '@/views/ThemeSetting.vue';
 import { NSpace, NCard, NButton, NAlert, NForm, NFormItem, NInput, NModal, useMessage } from 'naive-ui';
 import QrcodeVue from 'qrcode.vue';
 import api from '@/services/api';
+import { copyLink } from '@/services/clipboard';
 import { ref } from 'vue';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -243,13 +244,14 @@ async function updateVendorPassword() {
   }
 }
 
-async function copyToClipboard(text) {
+// 统一使用共享的 copyLink 工具
+async function handleCopy(url, label) {
   try {
-    await navigator.clipboard.writeText(text);
-    message.success('链接已复制到剪贴板');
+    await copyLink(url);
+    message.success(`已复制${label}链接`);
   } catch (err) {
     console.error('Failed to copy:', err);
-    message.error('复制失败');
+    message.error(`复制${label}失败`);
   }
 }
 </script>

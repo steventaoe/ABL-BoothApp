@@ -36,14 +36,15 @@
     </svg>
 
     <div v-if="hover" class="chart-tooltip" :style="tooltipStyle">
-      <div class="tooltip-date">{{ hover.label }}</div>
-      <div class="tooltip-value">{{ currency(hover.revenue) }}</div>
+      <div class="tooltip-date">{{ hover.fullLabel }}</div>
+      <div class="tooltip-value">{{ fullCurrency(hover.revenue) }}</div>
     </div>
   </div>
 </template>
 
 <script setup>
 import { computed, ref } from 'vue';
+import { formatChartLabel, formatChartTooltip } from '@/utils/dateFormatter';
 
 const props = defineProps({
   series: { type: Array, default: () => [] },
@@ -61,7 +62,9 @@ const stepX = computed(() => (props.series?.length > 1 ? (props.width - props.pa
 const points = computed(() => (props.series || []).map((p, idx) => ({
   x: props.padding + stepX.value * idx,
   y: props.padding + (props.height - props.padding * 2) * (1 - p.revenue / maxRevenue.value),
-  label: p.date,
+  label: formatChartLabel(p.date),
+  fullLabel: formatChartTooltip(p.date),
+  rawDate: p.date,
   revenue: p.revenue,
 })));
 
@@ -86,11 +89,25 @@ function yForValue(value) {
 
 function shortLabel(label) {
   if (!label) return '';
+  // 格式化后的时间是 "MM/DD HH:MM"
+  // 只显示时间部分 HH:MM
   const parts = label.split(' ');
   return parts.length > 1 ? parts[1] : label;
 }
 
 function currency(v) {
+  if (typeof v !== 'number') return '¥0';
+  // 简化大额显示，避免文字过长被遮挡
+  if (v >= 10000) {
+    return `¥${(v / 10000).toFixed(1)}万`;
+  } else if (v >= 1000) {
+    return `¥${(v / 1000).toFixed(1)}k`;
+  }
+  return `¥${v.toFixed(0)}`;
+}
+
+// 工具提示使用完整金额显示
+function fullCurrency(v) {
   if (typeof v !== 'number') return '¥0.00';
   return `¥${v.toFixed(2)}`;
 }

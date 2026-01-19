@@ -1,11 +1,23 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import api from '@/services/api';
+import { getImageUrl } from '@/services/url';
 
 export const useOrderStore = defineStore('order', () => {
   const pendingOrders = ref([]);
   // 【新增】存储已完成订单列表
-  const completedOrders = ref([]); 
+  const completedOrders = ref([]);
+  
+  // 预处理订单数据，将商品图片 URL 转换为完整路径
+  const processOrders = (orders) => {
+    return orders.map(order => ({
+      ...order,
+      items: order.items.map(item => ({
+        ...item,
+        product_image_url: getImageUrl(item.product_image_url)
+      }))
+    }));
+  }; 
   const activeEventId = ref(null);
   let pollingInterval = null;
   // 【新增】设置当前活动的展会
@@ -24,13 +36,10 @@ export const useOrderStore = defineStore('order', () => {
     try {
       const response = await api.get(`/events/${activeEventId.value}/orders?status=pending`);
       
+      const processedOrders = processOrders(response.data);
       const oldOrderCount = pendingOrders.value.length;
-      if (JSON.stringify(pendingOrders.value) !== JSON.stringify(response.data)) {
-        pendingOrders.value = response.data;
-        if (response.data.length > oldOrderCount) {
-          const audio = new Audio('/notification.mp3');
-          audio.play();
-        }
+      if (JSON.stringify(pendingOrders.value) !== JSON.stringify(processedOrders)) {
+        pendingOrders.value = processedOrders;
       }
     } catch (err) {
       console.error("Polling failed:", err);
@@ -73,7 +82,7 @@ export const useOrderStore = defineStore('order', () => {
     if (!activeEventId.value) return;
     try {
       const response = await api.get(`/events/${activeEventId.value}/orders?status=completed`);
-      completedOrders.value = response.data;
+      completedOrders.value = processOrders(response.data);
     } catch (err) {
       console.error("Failed to fetch completed orders:", err);
     }

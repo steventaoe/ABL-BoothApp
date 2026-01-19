@@ -37,6 +37,7 @@
 <script setup>
 import { computed } from 'vue';
 import { NButton } from 'naive-ui';
+import { formatTimestamp } from '@/utils/dateFormatter';
 
 const props = defineProps({
   order: { type: Object, required: true },
@@ -48,16 +49,7 @@ defineEmits(['complete', 'cancel']);
 const backendUrl = 'http://127.0.0.1:5140';
 
 const formattedTime = computed(() => {
-  return new Date(props.order.timestamp).toLocaleString('zh-CN', {
-    timeZone: 'Asia/Shanghai',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-  });
+  return formatTimestamp(props.order.timestamp);
 });
 </script>
 

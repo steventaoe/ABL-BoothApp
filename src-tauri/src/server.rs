@@ -17,7 +17,7 @@ pub async fn start_server(state: AppState, port: u16) {
     let upload_dir = state.upload_dir.clone();
 
     // 打印一下当前的上传根目录，确保它符合预期
-    println!("[Server Debug] Upload Root Path: {:?}", upload_dir);
+    //println!("[Server Debug] Upload Root Path: {:?}", upload_dir);
 
     let app = Router::new()
         .nest("/api", api::router()) // API 路由

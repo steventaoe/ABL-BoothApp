@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import api from '@/services/api';
+import { getImageUrl } from '@/services/url';
 
 export const useEventDetailStore = defineStore('eventDetail', () => {
   // --- State ---
@@ -8,7 +9,18 @@ export const useEventDetailStore = defineStore('eventDetail', () => {
   const products = ref([]); // 存储该展会上架的商品列表
   const isLoading = ref(false);
   const error = ref(null);
-  const allOrders = ref([]); 
+  const allOrders = ref([]);
+
+  // 预处理订单数据，将商品图片 URL 转换为完整路径
+  const processOrders = (orders) => {
+    return orders.map(order => ({
+      ...order,
+      items: order.items.map(item => ({
+        ...item,
+        product_image_url: getImageUrl(item.product_image_url)
+      }))
+    }));
+  }; 
 
   // --- Actions ---
   // 获取指定展会的商品列表
@@ -17,7 +29,10 @@ export const useEventDetailStore = defineStore('eventDetail', () => {
     error.value = null;
     try {
       const response = await api.get(`/events/${eventId}/products`);
-      products.value = response.data;
+      products.value = response.data.map(product => ({
+        ...product,
+        image_url: getImageUrl(product.image_url)
+      }));
     } catch (err) {
       error.value = '无法加载展会商品列表。';
       console.error(err);
@@ -30,8 +45,9 @@ export const useEventDetailStore = defineStore('eventDetail', () => {
   async function addProductToEvent(eventId, productData) {
     try {
       const response = await api.post(`/events/${eventId}/products`, productData);
-      products.value.unshift(response.data);
-      return response.data;
+      const product = { ...response.data, image_url: getImageUrl(response.data.image_url) };
+      products.value.unshift(product);
+      return product;
     } catch (err) {
       console.error(err);
       throw new Error(err.response?.data?.error || '上架商品失败。');
@@ -42,11 +58,12 @@ export const useEventDetailStore = defineStore('eventDetail', () => {
   async function updateEventProduct(productId, productData) {
     try {
       const response = await api.put(`/products/${productId}`, productData);
+      const product = { ...response.data, image_url: getImageUrl(response.data.image_url) };
       const index = products.value.findIndex(p => p.id === productId);
       if (index !== -1) {
-        products.value[index] = response.data;
+        products.value[index] = product;
       }
-      return response.data;
+      return product;
     } catch (err) {
       console.error(err);
       throw new Error(err.response?.data?.error || '更新商品失败。');
@@ -69,7 +86,7 @@ export const useEventDetailStore = defineStore('eventDetail', () => {
     try {
       // 不带 status 参数，获取所有订单
       const response = await api.get(`/events/${eventId}/orders`);
-      allOrders.value = response.data;
+      allOrders.value = processOrders(response.data);
     } catch (err) {
       error.value = '无法加载订单列表。';
       console.error(err);
@@ -81,11 +98,12 @@ export const useEventDetailStore = defineStore('eventDetail', () => {
     try {
       const response = await api.put(`/events/${eventId}/orders/${orderId}/status`, { status: newStatus });
       // 更新成功后，在本地 allOrders 列表中找到并更新该订单
+      const processedOrders = processOrders([response.data]);
       const index = allOrders.value.findIndex(o => o.id === orderId);
       if (index !== -1) {
-        allOrders.value[index] = response.data;
+        allOrders.value[index] = processedOrders[0];
       }
-      return response.data;
+      return processedOrders[0];
     } catch (err) {
       console.error(err);
       throw new Error(err.response?.data?.error || '更新订单状态失败。');

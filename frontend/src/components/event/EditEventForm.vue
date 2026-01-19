@@ -15,11 +15,20 @@
     </div>
     <div class="form-group">
       <label for="edit-vendor_password">摊主密码 (可选):</label>
-      <n-input id="edit-vendor_password" v-model:value="editableEvent.vendor_password" placeholder="留空则清除密码" />
+      <n-input 
+        id="edit-vendor_password" 
+        v-model:value="editableEvent.vendor_password" 
+        type="password"
+        placeholder="留空则保持原密码不变"
+        show-password-on="click"
+      />
+      <small style="color: var(--text-muted); margin-top: 0.25rem; display: block;">
+        提示：输入新密码以修改，留空则不更改现有密码
+      </small>
     </div>
     <ImageUploader
       label="展会收款码"
-      :initial-image-url="editableEvent.qrcode_url"
+      :initial-image-url="editableEvent.qrcode_url || editableEvent.payment_qr_code_path"
       v-model="newQrCodeFile"
       @image-removed="handleImageRemoval"
     />

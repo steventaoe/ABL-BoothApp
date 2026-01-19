@@ -125,26 +125,28 @@
             <p v-if="!statStore.stats.summary.length" class="no-data">
               // 无有效销售数据记录...
             </p>
-            <n-table v-else size="small">
-              <thead>
-                <tr>
-                  <th>制品编号</th>
-                  <th>制品名</th>
-                  <th class="text-right">单价</th>
-                  <th class="text-center">销售量</th>
-                  <th class="text-right">销售额</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="item in statStore.stats.summary" :key="item.product_id">
-                  <td class="id-cell">#{{ item.product_code }}</td>
-                  <td>{{ item.product_name }}</td>
-                  <td class="text-right currency-cell">{{ formatCurrency(item.unit_price) }}</td>
-                  <td class="text-center quantity-cell">{{ item.total_quantity }}</td>
-                  <td class="text-right currency-cell">{{ formatCurrency(item.total_revenue_per_item) }}</td>
-                </tr>
-              </tbody>
-            </n-table>
+            <div v-else class="table-wrapper">
+              <table class="stats-table">
+                <thead>
+                  <tr>
+                    <th>制品编号</th>
+                    <th>制品名</th>
+                    <th class="text-right">单价</th>
+                    <th class="text-center">销售量</th>
+                    <th class="text-right">销售额</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="item in statStore.stats.summary" :key="item.product_id">
+                    <td class="id-cell">#{{ item.product_code }}</td>
+                    <td>{{ item.product_name }}</td>
+                    <td class="text-right currency-cell">{{ formatCurrency(item.unit_price) }}</td>
+                    <td class="text-center quantity-cell">{{ item.total_quantity }}</td>
+                    <td class="text-right currency-cell">{{ formatCurrency(item.total_revenue_per_item) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </transition>
       </section>
@@ -327,21 +329,35 @@ watch(() => route.params.id, (newEventId) => {
 .admin-event-stat {
   padding: 2rem;
   color: var(--primary-text-color);
+  max-width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
 }
 
 .stat-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  gap: 1rem;
   margin-bottom: 2rem;
   padding-bottom: 1rem;
   border-bottom: 1px solid var(--border-color);
+  min-width: 0;
+}
+
+.stat-header > div {
+  flex: 1;
+  min-width: 0;
 }
 
 .stat-header h1 {
   color: var(--accent-color);
   margin: 0;
   font-size: 1.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
 }
 
 .stat-header p {
@@ -355,6 +371,8 @@ watch(() => route.params.id, (newEventId) => {
   font-weight: 600;
   padding: 0.75rem 1.5rem;
   transition: all 0.2s ease;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .download-btn:hover {
@@ -394,6 +412,11 @@ watch(() => route.params.id, (newEventId) => {
   font-size: 1.25rem;
   color: var(--accent-color);
   font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
 }
 
 .toggle-btn {
@@ -427,6 +450,9 @@ watch(() => route.params.id, (newEventId) => {
   border: 2px solid var(--border-color);
   border-radius: 8px;
   padding: 1.5rem;
+  max-width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
 }
 
 .loading-indicator, .error-message {
@@ -538,6 +564,61 @@ watch(() => route.params.id, (newEventId) => {
 svg {
   width: 100%;
   height: auto;
+}
+
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.stats-table {
+  width: 100%;
+  margin-top: 0;
+  border-collapse: collapse;
+  border-spacing: 0;
+  text-align: left;
+  font-size: 0.9rem;
+  min-width: 700px;
+}
+
+/* 表头样式 */
+.stats-table th {
+  padding: 12px 16px;
+  background-color: var(--card-bg-color);
+  color: var(--primary-text-color);
+  font-weight: 600;
+  border-bottom: 2px solid var(--accent-color);
+  white-space: nowrap;
+}
+
+/* 数据单元格样式 */
+.stats-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--secondary-text-color);
+  vertical-align: middle;
+}
+
+/* 表格行的交互效果 */
+.stats-table tbody tr {
+  transition: background-color 0.2s ease-in-out;
+}
+
+.stats-table tbody tr:hover {
+  background-color: var(--accent-color-light);
+}
+
+/* 特定列的微调 */
+.stats-table th:first-child,
+.stats-table td:first-child {
+  padding-left: 0;
+}
+
+.stats-table th:last-child,
+.stats-table td:last-child {
+  text-align: right;
+  padding-right: 0;
 }
 
 .line {
@@ -665,6 +746,9 @@ tbody td {
 
   .stat-header h1 {
     font-size: 1.5rem;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
   }
 
   .stat-header p {
@@ -673,6 +757,8 @@ tbody td {
 
   .download-btn {
     align-self: flex-start;
+    font-size: 0.9rem;
+    padding: 0.6rem 1.2rem;
   }
 
   .section-container {
@@ -695,8 +781,14 @@ tbody td {
     font-size: 1.5rem;
   }
 
-  th, td {
-    padding: 0.75rem 0.5rem;
+  .stats-table {
+    font-size: 0.85rem;
+    min-width: 650px;
+  }
+
+  .stats-table th,
+  .stats-table td {
+    padding: 10px 12px;
   }
 
   .no-data {
@@ -716,6 +808,8 @@ tbody td {
 
   .stat-header h1 {
     font-size: 1.25rem;
+    white-space: normal;
+    word-break: break-word;
   }
 
   .stat-header p {
@@ -754,19 +848,34 @@ tbody td {
   .download-btn {
     width: 100%;
     justify-content: center;
-  }
-
-  th, td {
-    padding: 0.5rem 0.25rem;
     font-size: 0.85rem;
+    padding: 0.6rem 1rem;
   }
 
-  thead th {
+  .stats-table {
     font-size: 0.75rem;
+    min-width: 600px;
+  }
+
+  .stats-table th,
+  .stats-table td {
+    padding: 8px 10px;
+  }
+
+  .stats-table th {
+    font-size: 0.7rem;
+  }
+
+  .id-cell {
+    font-size: 0.7rem;
   }
 
   .quantity-cell {
-    font-size: 1rem;
+    font-size: 0.9rem;
+  }
+
+  .currency-cell {
+    font-size: 0.75rem;
   }
 
   .no-data {

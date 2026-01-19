@@ -1,5 +1,5 @@
 [package]
-name = "booth-tool"
+name = "BoothKernel"
 version = "0.1.0"
 description = "A Tauri App"
 authors = ["you"]
@@ -49,8 +49,16 @@ walkdir = "2"
 tauri-plugin-http = "2"
 tauri-plugin-os = "2"
 dirs = "6.0.0"
+tauri-plugin-app = "2.0.0-alpha.2"
 [build-dependencies]
 tauri-build = { version = "2.0", features = [] }
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"
+
+[profile.release]
+panic = "abort"       # 移除 panic 的堆栈展开代码
+codegen-units = 4     # 降低并行度以获得更好的优化
+lto = true            # 启用链接时优化 (Link Time Optimization)
+opt-level = "z"       # 针对体积进行优化 (s 是 size, z 是 size min)
+strip = true          # 自动剥离符号表 (这一点对减小体积非常关键！)

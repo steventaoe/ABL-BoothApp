@@ -1,19 +1,34 @@
 // src/services/url.js
 
+const isTauri = typeof window !== 'undefined' && window.__TAURI_INTERNALS__ !== undefined;
+
+// 你的后端端口
+const API_PORT = 5140;
+
+// 注意：图片不在 /api 下，而在根路径的 /uploads 下
+const SERVER_ORIGIN = `http://127.0.0.1:${API_PORT}`;
+
 /**
  * 将数据库存储的相对路径转换为完整的 URL
- * 因为前端本身就是从 5000 端口加载的，所有请求自动发送到同一服务器
- * @param {string} path - 数据库存的路径 (如 "uploads/products/abc.png")
+ * @param {string} path - 数据库存的路径 (如 "uploads/products/abc.png" 或 "/uploads/products/abc.png")
  */
 export function getImageUrl(path) {
   if (!path) return '';
 
-  // 如果已经是完整链接，直接返回
-  if (path.startsWith('http') || path.startsWith('blob:')) {
+  // 已经是完整链接 or blob
+  if (path.startsWith('http') || path.startsWith('blob:') || path.startsWith('data:')) {
     return path;
   }
 
-  // 返回相对路径，浏览器会自动发送到当前服务器
+  // 规范成以 / 开头
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
+
+  // 关键：Tauri 里前端不是 http origin，必须拼绝对地址指向你的 axum server
+  if (isTauri) {
+    console.log(`[getImageUrl] Tauri detected, converting to absolute URL: ${SERVER_ORIGIN}${cleanPath}`);
+    return `${SERVER_ORIGIN}${cleanPath}`;
+  }
+
+  // 浏览器环境仍保持相对路径（同源）
   return cleanPath;
 }

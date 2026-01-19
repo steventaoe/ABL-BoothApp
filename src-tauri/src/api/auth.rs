@@ -64,7 +64,7 @@ where
         })?;
 
         // 2. 调试打印 (仅在调试模式或出错时打印，避免刷屏)
-        println!("[DEBUG] Body received (len={}): {:?}", bytes.len(), bytes);
+        // println!("[DEBUG] Body received (len={}): {:?}", bytes.len(), bytes);
 
         // 3. 尝试反序列化
         match serde_json::from_slice::<T>(&bytes) {
@@ -128,13 +128,13 @@ async fn login_handler(
     DebugJson(payload): DebugJson<LoginRequest>,
 ) -> Result<Response, AuthError> {
     // [调试] 确认成功解析 payload
-    println!("[DEBUG] Login handler called successfully");
-    println!(
-        "[DEBUG] Parsed payload - role: {}, password length: {}, event_id: {:?}",
-        payload.role,
-        payload.password.len(),
-        payload.event_id
-    );
+    // println!("[DEBUG] Login handler called successfully");
+    // println!(
+    //     "[DEBUG] Parsed payload - role: {}, password length: {}, event_id: {:?}",
+    //     payload.role,
+    //     payload.password.len(),
+    //     payload.event_id
+    // );
 
     // event_id 直接从 payload 中获取
     let event_id = payload.event_id;
@@ -154,15 +154,15 @@ async fn login_handler(
             // [调试] 打印密码验证信息
             let input_password_hash = security::hash_password(&payload.password);
             let admin123_hash = security::hash_password("admin123");
-            println!("[DEBUG] Admin Login Attempt:");
-            println!("  Input Password: {}", &payload.password);
-            println!("  Input Password Hash: {}", input_password_hash);
-            println!("  admin123 Hash: {}", admin123_hash);
-            println!("  Stored Hash: {}", stored_hash);
-            println!(
-                "  Verify Result: {}",
-                security::verify_password(&payload.password, &stored_hash)
-            );
+            // println!("[DEBUG] Admin Login Attempt:");
+            // println!("  Input Password: {}", &payload.password);
+            // println!("  Input Password Hash: {}", input_password_hash);
+            // println!("  admin123 Hash: {}", admin123_hash);
+            // println!("  Stored Hash: {}", stored_hash);
+            // println!(
+            //     "  Verify Result: {}",
+            //     security::verify_password(&payload.password, &stored_hash)
+            // );
 
             if security::verify_password(&payload.password, &stored_hash) {
                 let token = security::create_jwt("admin", "all", None, &state.jwt_secret)?;
@@ -173,12 +173,12 @@ async fn login_handler(
             // --- 摊主登录逻辑 ---
 
             // [调试] 打印密码验证信息
-            let input_password_hash = security::hash_password(&payload.password);
-            let admin123_hash = security::hash_password("admin123");
-            println!("[DEBUG] Vendor Login Attempt:");
-            println!("  Input Password: {}", &payload.password);
-            println!("  Input Password Hash: {}", input_password_hash);
-            println!("  admin123 Hash: {}", admin123_hash);
+            // let input_password_hash = security::hash_password(&payload.password);
+            // let admin123_hash = security::hash_password("admin123");
+            // println!("[DEBUG] Vendor Login Attempt:");
+            // println!("  Input Password: {}", &payload.password);
+            // println!("  Input Password Hash: {}", input_password_hash);
+            // println!("  admin123 Hash: {}", admin123_hash);
 
             // A. 先尝试全局 Admin 密码 (允许摊主用管理员密码登录)
             let admin_row: Option<(String,)> =
@@ -188,11 +188,11 @@ async fn login_handler(
                     .unwrap_or(None);
 
             if let Some((hash,)) = admin_row {
-                println!("  Admin Password Hash: {}", &hash);
-                println!(
-                    "  Verify Against Admin Hash: {}",
-                    security::verify_password(&payload.password, &hash)
-                );
+                // println!("  Admin Password Hash: {}", &hash);
+                // println!(
+                //     "  Verify Against Admin Hash: {}",
+                //     security::verify_password(&payload.password, &hash)
+                // );
                 if security::verify_password(&payload.password, &hash) {
                     let token = security::create_jwt("vendor", "all", None, &state.jwt_secret)?;
                     return Ok(build_success_response("vendor", "all", None, token));
@@ -207,11 +207,11 @@ async fn login_handler(
                     .unwrap_or(None);
 
             if let Some((hash,)) = vendor_row {
-                println!("  Vendor Password Hash: {}", &hash);
-                println!(
-                    "  Verify Against Vendor Hash: {}",
-                    security::verify_password(&payload.password, &hash)
-                );
+                // println!("  Vendor Password Hash: {}", &hash);
+                // println!(
+                //     "  Verify Against Vendor Hash: {}",
+                //     security::verify_password(&payload.password, &hash)
+                // );
                 if security::verify_password(&payload.password, &hash) {
                     let token = security::create_jwt("vendor", "all", None, &state.jwt_secret)?;
                     return Ok(build_success_response("vendor", "all", None, token));

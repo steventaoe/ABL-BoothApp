@@ -1,11 +1,24 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import api from '@/services/api';
+import { getImageUrl } from '@/services/url';
 
 export const useEventStore = defineStore('event', () => {
   const events = ref([]);
   const isLoading = ref(false);
   const error = ref(null);
+
+  // 预处理展会数据,将付款码 URL 转换为完整路径
+  const processEvent = (event) => {
+    return {
+      ...event,
+      qrcode_url: getImageUrl(event.qrcode_url)
+    };
+  };
+
+  const processEvents = (events) => {
+    return events.map(processEvent);
+  };
 
   async function fetchEvents() {
     // ... 此函数保持不变 ...
@@ -14,7 +27,8 @@ export const useEventStore = defineStore('event', () => {
     try {
       const response = await api.get('/events');
       // 防御性检查：确保响应数据是数组
-      events.value = Array.isArray(response.data) ? response.data : [];
+      const rawEvents = Array.isArray(response.data) ? response.data : [];
+      events.value = processEvents(rawEvents);
       if (!Array.isArray(response.data)) {
         console.warn('⚠️ API 返回的数据不是数组，已转换为空数组', response.data);
         error.value = '数据格式错误，请稍后重试。';
@@ -32,8 +46,9 @@ export const useEventStore = defineStore('event', () => {
     // ... 此函数保持不变 ...
     try {
       const response = await api.post('/events', eventData);
-      events.value.unshift(response.data);
-      return response.data;
+      const processedEvent = processEvent(response.data);
+      events.value.unshift(processedEvent);
+      return processedEvent;
     } catch (err) {
       console.error(err);
       throw new Error(err.response?.data?.error || '创建展会失败，请重试。');
@@ -64,14 +79,15 @@ export const useEventStore = defineStore('event', () => {
       // console.log('尝试更新展会信息', eventId, formData);
       const response = await api.post(`/events/${eventId}`, formData);
       
+      const processedEvent = processEvent(response.data);
       // 更新成功后，同样在前端直接更新数据
       // 注意：这里的 id 是 eventId，需要确保类型一致
       const index = events.value.findIndex(e => e.id === Number(eventId));
       if (index !== -1) {
         // 使用 Object.assign 来合并更新后的字段
-        Object.assign(events.value[index], response.data);
+        Object.assign(events.value[index], processedEvent);
       }
-      return response.data;
+      return processedEvent;
     } catch (err) {
       console.error(err);
       throw new Error(err.response?.data?.error || '更新展会信息失败。');

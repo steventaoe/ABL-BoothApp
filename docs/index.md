@@ -1,0 +1,40 @@
+---
+layout: home
+
+hero:
+  name: "摊盒 Booth-Kernel"
+  text: "现代的同人出摊系统"
+  tagline: 无需网络 · 极简工作流 · 开箱即用
+  image:
+    src: /images/app-icon.png
+    alt: Booth-Kernel Logo
+  actions:
+    - theme: brand
+      text: ⬇️ 立即下载
+      link: https://github.com/Academy-of-Boundary-Landscape/ABL-BoothApp/releases
+    - theme: alt
+      text: 快速上手
+      link: /guide/getting-started
+    - theme: alt
+      text: Github 仓库
+      link: https://github.com/Academy-of-Boundary-Landscape/ABL-BoothApp
+    - theme: alt
+      text: 常见问题
+      link: /faq/
+
+features:
+  - icon: 🚀
+    title: 自动化工作流
+    details: 自动算账、自动扣库存、一键出报表。省下把画正字和按计算器的时间与精力。
+  - icon: 📶
+    title: 多机互联
+    details: 平板点单、手机收银、多设备协同。局域网实时同步数据，稳定可靠。
+  - icon: 🛡️
+    title: 局域网架构
+    details: 专为漫展复杂网络环境设计。无需互联网，开热点即可工作。
+  - icon: 🔓
+    title: 零门槛部署
+    details: 无需服务器、无需认证、无需公众号。下载解压，点击即用。
+---
+
+<Landing />

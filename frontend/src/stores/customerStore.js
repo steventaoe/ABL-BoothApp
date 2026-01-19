@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import api from '@/services/api';
 import { socket } from '@/services/socketService';
 import { useAlert } from '@/services/useAlert';
+import { getImageUrl } from '@/services/url';
 
 // 获取弹窗函数
 
@@ -48,7 +49,10 @@ export const useCustomerStore = defineStore('customer', () => {
     error.value = null;
     try {
       const response = await api.get(`/events/${activeEventId.value}/products`);
-      products.value = response.data;
+      products.value = response.data.map(product => ({
+        ...product,
+        image_url: getImageUrl(product.image_url)
+      }));
     } catch (err) {
       error.value = '加载商品失败，请联系摊主。';
       console.error(err);
@@ -62,7 +66,10 @@ export const useCustomerStore = defineStore('customer', () => {
     if (!activeEventId.value) return;
     try {
       const response = await api.get(`/events/${activeEventId.value}`);
-      activeEvent.value = response.data;
+      activeEvent.value = {
+        ...response.data,
+        qrcode_url: getImageUrl(response.data.qrcode_url)
+      };
     } catch (err) {
       console.error('加载展会信息失败:', err);
       // 不设置error，因为这不是关键功能

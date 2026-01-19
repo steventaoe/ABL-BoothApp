@@ -4,13 +4,33 @@
       <h2>{{ title }}</h2>
       <p>{{ subtitle }}</p>
       <n-alert v-if="props.role === 'admin' && isDefaultAdmin" type="warning" :bordered="false" style="margin-bottom: 1rem;">
-              默认管理员密码为 admin123，请登录后尽快修改。
-            </n-alert>
+        默认管理员密码为 admin123，请登录后尽快修改。
+      </n-alert>
+      
       <form @submit.prevent="handleLogin">
-        <n-input v-model:value="password" type="text" placeholder="请输入密码" size="large" />
+        <!-- 添加 :disabled 属性，防止请求期间修改密码 -->
+        <n-input 
+          v-model:value="password" 
+          type="text" 
+          placeholder="请输入密码" 
+          size="large" 
+          :disabled="loading" 
+        />
+        
         <div style="margin-top: 1rem;">
-          <n-button type="primary" attr-type="submit" block>进入</n-button>
+          <!-- 添加 :loading 和 :disabled 属性 -->
+          <n-button 
+            type="primary" 
+            attr-type="submit" 
+            block 
+            :loading="loading"
+            :disabled="loading"
+          >
+            <!-- 登录中显示的文字（可选，NaiveUI loading时通常只显示圈圈，这里保持原样即可） -->
+            {{ loading ? '登录中...' : '进入' }}
+          </n-button>
         </div>
+        
         <div v-if="error" class="error-message" style="margin-top: 1rem;">
           <n-alert type="error" :bordered="false">{{ error }}</n-alert>
         </div>
@@ -33,35 +53,41 @@ const props = defineProps({
 const store = useAuthStore();
 const router = useRouter();
 const route = useRoute();
+
 const password = ref('');
 const error = ref('');
 const isDefaultAdmin = ref(false);
+const loading = ref(false); // 1. 新增 loading 状态
 
 const title = computed(() => props.role === 'admin' ? '管理员后台' : '摊主页面');
 const subtitle = computed(() => `请输入${title.value}密码以继续`);
 
 async function handleLogin() {
+  // 防止重复点击
+  if (loading.value) return;
+
   error.value = '';
+  loading.value = true; // 2. 开始加载
   
   // [调试] 打印登录信息
-  console.log('[前端 DEBUG] Login Attempt:');
-  console.log('  Role:', props.role);
-  console.log('  Password:', password.value);
-  console.log('  EventId:', route.query.eventId);
+  console.log('[前端 DEBUG] Login Attempt:', {
+    Role: props.role,
+    EventId: route.query.eventId
+  });
   
   try {
-    // 1. 【核心改动】从路由的 query 中获取 eventId
     const eventId = route.query.eventId;
-    
-    // 2. 准备重定向路径
     const redirectPath = route.query.redirect || (props.role === 'admin' ? '/admin' : '/');
     
-    // 3. 【核心改动】将 eventId 和 redirectPath 都传给 store 的 login action
+    // 执行登录逻辑
     await store.login(password.value, props.role, eventId, redirectPath);
 
   } catch (err) {
     console.error('[前端 DEBUG] Login Error:', err);
-    error.value = err.message;
+    error.value = err.message || '登录失败，请检查网络或密码';
+  } finally {
+    // 3. 无论成功失败，结束加载状态 (如果跳转很快，用户可能看不到这里，但为了稳健性必须加)
+    loading.value = false;
   }
 }
 

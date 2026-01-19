@@ -21,14 +21,14 @@ pub async fn static_file_handler(uri: Uri, _upload_dir: std::path::PathBuf) -> R
     // 1. 打印当前环境诊断信息 (只在请求 index.html 或根路径时打印)
     if path == "" || path == "index.html" {
         println!(">>> [环境诊断] 正在运行诊断...");
-        
+
         match env::current_dir() {
             Ok(cwd) => println!(">>> [环境诊断] 手机当前工作目录: {:?}", cwd),
             Err(e) => println!(">>> [环境诊断] 无法获取工作目录: {}", e),
         }
 
         println!(">>> [资源清单] 开始检查 include_dir 嵌入的文件...");
-        
+
         // 简单的递归计数函数，用于统计文件总数
         fn count_files(dir: &Dir) -> usize {
             let mut count = dir.files().count();
@@ -39,7 +39,7 @@ pub async fn static_file_handler(uri: Uri, _upload_dir: std::path::PathBuf) -> R
         }
 
         let total_files = count_files(&FRONTEND_ASSETS);
-        
+
         // 打印根目录下的部分文件作为验证
         for file in FRONTEND_ASSETS.files() {
             println!("   - (根目录) 已打包文件: {:?}", file.path());
@@ -48,7 +48,10 @@ pub async fn static_file_handler(uri: Uri, _upload_dir: std::path::PathBuf) -> R
         if total_files == 0 {
             println!(">>> [严重警告] include_dir 列表为空！编译时可能指向了空文件夹！");
         } else {
-            println!(">>> [资源清单] 共找到 {} 个嵌入文件 (含子目录)。", total_files);
+            println!(
+                ">>> [资源清单] 共找到 {} 个嵌入文件 (含子目录)。",
+                total_files
+            );
         }
         println!("--------------------------------------------------");
     }
@@ -56,7 +59,7 @@ pub async fn static_file_handler(uri: Uri, _upload_dir: std::path::PathBuf) -> R
     // ----------------------------------------------------
     // 2. 正常处理逻辑
     // ----------------------------------------------------
-    
+
     // include_dir 的 get_file 需要准确的路径
     // 如果请求的是空路径，默认映射到 index.html (Axum通常会把 / 变成 empty path)
     let search_path = if path == "" { "index.html" } else { path };
@@ -75,6 +78,9 @@ pub async fn static_file_handler(uri: Uri, _upload_dir: std::path::PathBuf) -> R
         return ([(header::CONTENT_TYPE, "text/html")], index.contents()).into_response();
     }
 
-    println!(">>> [失败] 彻底放弃治疗。未找到 '{}' 且未找到 'index.html'", path);
+    println!(
+        ">>> [失败] 彻底放弃治疗。未找到 '{}' 且未找到 'index.html'",
+        path
+    );
     (StatusCode::NOT_FOUND, "404 Not Found").into_response()
 }

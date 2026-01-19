@@ -114,7 +114,7 @@
           <tbody>
             <tr v-for="order in filteredOrders" :key="order.id">
               <td><strong>#{{ order.id }}</strong></td>
-              <td>{{ new Date(order.timestamp).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false }) }}</td>
+              <td>{{ formatTimestamp(order.timestamp) }}</td>
               <td>
                 <ul class="item-list">
                   <li v-for="item in order.items" :key="item.id">
@@ -148,6 +148,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useEventDetailStore } from '@/stores/eventDetailStore';
 import { NSelect, NSpin, NAlert, NTable, NCard, NTag, NDropdown, NButton, NInput, NInputNumber, useDialog, useMessage } from 'naive-ui';
+import { formatTimestamp } from '@/utils/dateFormatter';
 const props = defineProps({
   id: { type: String, required: true }
 });

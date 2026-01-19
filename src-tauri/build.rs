@@ -10,7 +10,7 @@ fn main() {
     // 如果你已经把 dist 复制到了 src-tauri 下，就用 "dist"
     // 如果还在 frontend 下，就用 "../frontend/dist"
     // 这里推荐指向你复制过来的 src-tauri/dist，因为最稳定
-    let dist_path = manifest_path.join("dist"); 
+    let dist_path = manifest_path.join("dist");
 
     // 3. 检查一下路径是否存在，给个编译时提示
     if !dist_path.exists() {
@@ -22,7 +22,10 @@ fn main() {
 
     // 4. 将绝对路径设置为环境变量，供 RustEmbed 使用
     // 注意：Windows 路径的反斜杠可能会有问题，转成字符串处理
-    println!("cargo:rustc-env=FRONTEND_DIST_ABS_PATH={}", dist_path.display());
+    println!(
+        "cargo:rustc-env=FRONTEND_DIST_ABS_PATH={}",
+        dist_path.display()
+    );
 
     // 5. 告诉 Cargo，如果 dist 文件夹变了，需要重新编译
     println!("cargo:rerun-if-changed=dist");

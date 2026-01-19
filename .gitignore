@@ -66,3 +66,11 @@ src-tauri/gen/android/
 src-tauri/gen/schemas/
 
 secret-key.txt
+
+# 所有叫做keystore.properties的文件
+**/keystore.properties
+# 所有.jks文件
+**/*.jks
+# VitePress 相关
+docs/.vitepress/dist
+docs/.vitepress/cache

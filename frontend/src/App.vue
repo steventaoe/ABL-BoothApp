@@ -1,5 +1,5 @@
 <template>
-  <n-config-provider :theme="naiveTheme" :theme-overrides="themeOverrides">
+ <n-config-provider class="app-container" :theme="naiveTheme" :theme-overrides="themeOverrides">
     <n-message-provider>
       <n-dialog-provider>
         <MainHeader />
@@ -29,19 +29,18 @@ const naiveTheme = computed(() => (themeStore.isDark ? darkTheme : null));
 const themeOverrides = computed(() => themeStore.naiveThemeOverrides);
 </script>
 <style scoped>
-  body {
-  /* 基础样式 */
-  margin: 0;
-  padding: 0;
-  
+.app-container {
   /* 关键代码：利用 padding 避开安全区 */
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
-  
-  /* 确保背景色铺满全屏，而不仅仅是 padding 内部 */
-  min-height: 100vh;
+
+  /* 设置最小高度以撑满屏幕 */
+  min-height: 90vh;
   box-sizing: border-box;
+  
+  /* 消除滚动条 */
+  overflow: hidden;
 }
 </style>

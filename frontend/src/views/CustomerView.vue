@@ -9,7 +9,10 @@
             :tertiary="selectedCategory !== ''"
             block
             @click="selectedCategory = ''"
-          >全部分类</n-button>
+          >
+            全部分类
+          </n-button>
+
           <n-button
             v-for="cat in categoryOptions"
             :key="cat"
@@ -18,31 +21,52 @@
             :tertiary="selectedCategory !== cat"
             block
             @click="selectedCategory = cat"
-          >{{ cat }}</n-button>
+          >
+            {{ cat }}
+          </n-button>
         </n-space>
       </n-scrollbar>
     </div>
+
     <div class="product-panel">
+      <!-- ✅ 卡片大小滑动条（替代按钮组） -->
       <div class="card-size-toolbar">
-        <n-button-group>
-          <n-button :type="cardSize === 'small' ? 'primary' : 'default'" quaternary @click="cardSize = 'small'">小</n-button>
-          <n-button :type="cardSize === 'medium' ? 'primary' : 'default'" quaternary @click="cardSize = 'medium'">中</n-button>
-          <n-button :type="cardSize === 'large' ? 'primary' : 'default'" quaternary @click="cardSize = 'large'">大</n-button>
-        </n-button-group>
+        <n-space align="center" justify="space-between" style="width: 100%">
+          <n-space align="center" :size="10" class="toolbar-left">
+            <n-text depth="2" class="toolbar-label">卡片大小</n-text>
+
+            <div class="slider-wrap">
+              <n-slider
+                v-model:value="cardSizeIndex"
+                :min="0"
+                :max="2"
+                :step="1"
+                :marks="cardSizeMarks"
+                @update:value="onCardSizeUserChange"
+              />
+            </div>
+
+            <n-tag size="small" type="info" :bordered="false" class="size-tag">
+              {{ cardSizeLabel }}
+            </n-tag>
+          </n-space>
+        </n-space>
       </div>
+
       <n-spin :show="store.isLoading">
         <div class="product-scroll" v-if="!store.isLoading">
-          <ProductGrid 
-            :products="filteredProducts" 
+          <ProductGrid
+            :products="filteredProducts"
             :card-size="cardSize"
             @add-to-cart="store.addToCart"
           />
         </div>
       </n-spin>
     </div>
+
     <div class="cart-panel" v-if="!isMobile">
       <n-card size="small" embedded>
-        <ShoppingCart 
+        <ShoppingCart
           :cart="store.cart"
           :total="store.cartTotal"
           :is-checking-out="isCheckingOut"
@@ -52,8 +76,9 @@
         />
       </n-card>
     </div>
+
     <!-- 手机端底部悬浮购物车 -->
-    <ShoppingCart 
+    <ShoppingCart
       v-if="isMobile"
       :cart="store.cart"
       :total="store.cartTotal"
@@ -62,8 +87,9 @@
       @remove-from-cart="store.removeFromCart"
       @checkout="handleCheckout"
     />
-    <PaymentModal 
-      :show="showPaymentModal" 
+
+    <PaymentModal
+      :show="showPaymentModal"
       :total="orderTotal"
       :qr-code-url="store.qrCodeUrl"
       @close="closePaymentModal"
@@ -72,100 +98,138 @@
 </template>
 
 <script setup>
-import { useAlert } from '@/services/useAlert';
+import { useAlert } from '@/services/useAlert'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
+import { useCustomerStore } from '@/stores/customerStore'
+import ProductGrid from '@/components/customer/ProductGrid.vue'
+import ShoppingCart from '@/components/customer/ShoppingCart.vue'
+import PaymentModal from '@/components/customer/PaymentModal.vue'
+import {
+  NButton,
+  NSpace,
+  NScrollbar,
+  NCard,
+  NSpin,
+  NSlider,
+  NText,
+  NTag
+} from 'naive-ui'
 
-// 获取弹窗函数
-
-
-import { ref, onMounted, onUnmounted, computed } from 'vue';
-import { useCustomerStore } from '@/stores/customerStore';
-import { socket } from '@/services/socketService';
-import ProductGrid from '@/components/customer/ProductGrid.vue';
-import ShoppingCart from '@/components/customer/ShoppingCart.vue';
-import PaymentModal from '@/components/customer/PaymentModal.vue';
-import { NButton, NButtonGroup, NSpace, NScrollbar, NCard, NSpin } from 'naive-ui';
-
-// 【核心改动】通过 props 接收来自路由的展会 ID
+// 通过 props 接收来自路由的展会 ID
 const props = defineProps({
-  id: {
-    type: String,
-    required: true,
-  },
-});
+  id: { type: String, required: true }
+})
 
-const store = useCustomerStore();
-const showPaymentModal = ref(false);
-const orderTotal = ref(0);
-const isCheckingOut = ref(false); 
-const selectedCategory = ref('');
-const cardSize = ref('medium'); // 默认中等大小
+const store = useCustomerStore()
+
+const showPaymentModal = ref(false)
+const orderTotal = ref(0)
+const isCheckingOut = ref(false)
+
+const selectedCategory = ref('')
+
+// ===============================
+// ✅ 卡片大小：slider 三档
+// ===============================
+const cardSizeMarks = { 0: '小', 1: '中', 2: '大' }
+const cardSizeIndex = ref(1) // 默认中
+const userTouchedCardSize = ref(false) // 用户是否手动调过
+
+const cardSize = computed(() => {
+  return cardSizeIndex.value === 0 ? 'small' : cardSizeIndex.value === 1 ? 'medium' : 'large'
+})
+const cardSizeLabel = computed(() => (cardSizeIndex.value === 0 ? '小' : cardSizeIndex.value === 1 ? '中' : '大'))
+
+function onCardSizeUserChange() {
+  userTouchedCardSize.value = true
+}
+
+// ===============================
+// 分类/过滤
+// ===============================
 const categoryOptions = computed(() => {
   const cats = (store.products || [])
-    .map(p => p.category)
-    .filter(cat => !!cat && cat.trim() !== '');
-  return [...new Set(cats)];
-});
-const filteredProducts = computed(() => {
-  let list = store.products || [];
-  if (selectedCategory.value) {
-    list = list.filter(p => p.category === selectedCategory.value);
-  }
-  // 你可以在这里加搜索过滤
-  return list;
-});
-async function handleCheckout() {
-  const { showAlert, showSuccess, showError } = useAlert();
-  if (isCheckingOut.value) return; // 防止重复提交
+    .map((p) => p.category)
+    .filter((cat) => !!cat && cat.trim() !== '')
+  return [...new Set(cats)]
+})
 
-  isCheckingOut.value = true;
+const filteredProducts = computed(() => {
+  let list = store.products || []
+  if (selectedCategory.value) {
+    list = list.filter((p) => p.category === selectedCategory.value)
+  }
+  return list
+})
+
+// ===============================
+// 下单
+// ===============================
+async function handleCheckout() {
+  const { showSuccess, showError } = useAlert()
+  if (isCheckingOut.value) return
+
+  isCheckingOut.value = true
   try {
-    const newOrder = await store.submitOrder();
+    const newOrder = await store.submitOrder()
     if (newOrder) {
-      orderTotal.value = store.cartTotal;
-      showPaymentModal.value = true;
-      showSuccess('订单已成功提交！');
-      store.clearCart();
+      orderTotal.value = store.cartTotal
+      showPaymentModal.value = true
+      showSuccess('订单已成功提交！')
+      store.clearCart()
     }
   } catch (error) {
     console.log(error)
-    
-    showError(error.message);;
+    showError(error?.message || '下单失败，请重试')
   } finally {
-    isCheckingOut.value = false; // 无论成功失败，都解除禁用
+    isCheckingOut.value = false
   }
 }
+
 function closePaymentModal() {
-  showPaymentModal.value = false;
+  showPaymentModal.value = false
 }
 
-onMounted(() => {
-  store.setupStoreForEvent(props.id);;
-});
+// ===============================
+// 响应式：移动端判定 + 自动默认小卡
+// ===============================
+const isMobile = ref(false)
 
+function syncLayoutByWidth() {
+  const mobile = window.innerWidth <= 600
+  isMobile.value = mobile
 
-function checkMobileCardSize() {
-  if (window.innerWidth <= 600) {
-    cardSize.value = 'small';
+  // 仅当用户没手动调过时，移动端默认切小
+  if (mobile && !userTouchedCardSize.value) {
+    cardSizeIndex.value = 0
+  }
+
+  // 如果从移动端回到桌面端，且用户没手动调过，可以回到中（可选）
+  if (!mobile && !userTouchedCardSize.value) {
+    cardSizeIndex.value = 1
   }
 }
-const isMobile = ref(window.innerWidth <= 600);
-function checkMobile() {
-  isMobile.value = window.innerWidth <= 600;
-}
+
 onMounted(() => {
-  checkMobile();
-  checkMobileCardSize();
-  window.addEventListener('resize', checkMobileCardSize);
-});
+  store.setupStoreForEvent(props.id)
+  syncLayoutByWidth()
+  window.addEventListener('resize', syncLayoutByWidth)
+})
+
 onUnmounted(() => {
-  window.removeEventListener('resize', checkMobileCardSize);
-});
+  window.removeEventListener('resize', syncLayoutByWidth)
+})
+
+// 如果你希望：切换分类时自动回到顶部（可选）
+// watch(selectedCategory, () => {
+//   // 这里可以触发 product-scroll 的滚动归零
+// })
 </script>
 
 <style scoped>
 .sidebar {
-  flex: 0 0 100px; /* 固定宽度 */
-  padding: 1rem 1rem 1rem 1rem;
+  flex: 0 0 100px;
+  padding: 1rem;
   background: var(--card-bg-color);
   border-right: 1px solid var(--border-color);
   display: flex;
@@ -173,111 +237,79 @@ onUnmounted(() => {
   align-items: stretch;
   justify-content: flex-start;
 }
-.category-select {
-  margin-bottom: 1rem;
-  padding: 8px 12px;
-  border-radius: 4px;
-  border: 1px solid var(--border-color);
-  background: var(--card-bg-color);
-  color: var(--primary-text-color);
-  min-width: 120px;
-}
+
 .customer-view {
   display: flex;
   height: 100vh;
-  overflow: hidden; /* 禁止整体页面滚动，改为内部滚动 */
-  background-color: var(--bg-color); /* 确保背景色统一 */
+  overflow: hidden;
+  background-color: var(--bg-color);
 }
 
 .product-panel {
-  flex: 3; /* 占据约 3/4 宽度 */
-  padding: 2rem;
+  flex: 3;
+  padding: 1.5rem 1.5rem 1.25rem;
   display: flex;
   flex-direction: column;
   height: 100vh;
-  overflow: hidden; /* 交给内部滚动容器处理 */
+  overflow: hidden;
 }
 
 .product-scroll {
   flex: 1;
-  min-height: 0; /* 允许子元素在 flex 容器中正确收缩以启用滚动 */
+  min-height: 0;
   overflow-y: auto;
-  padding-right: 0.25rem; /* 防止滚动条遮挡内容 */
+  padding-right: 0.25rem;
   box-sizing: border-box;
 }
 
 .cart-panel {
-  flex: 1; /* 占据约 1/4 宽度 */
-  padding: 2rem;
+  flex: 1;
+  padding: 1.5rem;
   background-color: var(--card-bg-color);
   border-left: 1px solid var(--border-color);
-  display: flex; /* 让购物车内容能更好地布局 */
+  display: flex;
   flex-direction: column;
-  height: 100vh; /* 确保侧边栏与视口等高 */
-  box-sizing: border-box; /* 防止 padding 导致溢出 */
-  overflow-x:hidden; /* 防止横向滚动 */
+  height: 100vh;
+  box-sizing: border-box;
+  overflow-x: hidden;
   overflow-y: auto;
 }
+
 .category-btn {
-  background: none;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  padding: 0.75rem 1rem;
-  color: var(--primary-text-color);
-  text-align: left;
-  cursor: pointer;
-  transition: background 0.2s, color 0.2s, border-color 0.2s;
-  font-size: 1rem;
+  border-radius: 6px;
+  font-size: 0.95rem;
 }
 
-.category-btn.active,
-.category-btn:hover {
-  background: var(--accent-color);
-  color: var(--text-on-dark);
-  border-color: var(--accent-color);
+/* ✅ Toolbar：更紧凑 + sticky，避免占空间 */
+.card-size-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  padding: 0.4rem 0.25rem 0.9rem;
+  background: var(--bg-color);
 }
+
+.toolbar-label {
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.slider-wrap {
+  width: 180px;
+}
+
+.size-tag {
+  min-width: 32px;
+  text-align: center;
+}
+
 .category-list {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  overflow-y: auto; /* 当分类过多时，允许滚动 */
-}
-.card-size-toolbar {
-  display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1.5rem;
+  overflow-y: auto;
 }
 
-.card-size-toolbar button {
-  background: none;
-  border: 2px solid var(--border-color);
-  border-radius: 4px;
-  padding: 0.5rem 1.2rem;
-  color: var(--primary-text-color);
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: 
-    background 0.2s, 
-    color 0.2s, 
-    border-color 0.2s, 
-    box-shadow 0.2s;
-  outline: none;
-}
-
-.card-size-toolbar button.active,
-.card-size-toolbar button:focus {
-  background: var(--accent-color);
-  color: var(--text-on-dark);
-  border-color: var(--accent-color);
-  box-shadow: 0 0 0 2px var(--accent-color-light);
-}
-
-.card-size-toolbar button:hover:not(.active) {
-  background: var(--card-bg-color);
-  border-color: var(--accent-color);
-  color: var(--accent-color);
-}
 /* 平板端适配 */
 @media (max-width: 1024px) {
   .sidebar {
@@ -285,10 +317,10 @@ onUnmounted(() => {
     padding: 1rem;
   }
   .product-panel {
-    padding: 1.25rem;
+    padding: 1.1rem;
   }
   .cart-panel {
-    padding: 1.25rem;
+    padding: 1.1rem;
   }
 }
 
@@ -324,11 +356,11 @@ onUnmounted(() => {
     flex: 0 0 auto;
     min-width: 92px;
     text-align: center;
+    font-size: 0.88rem;
   }
 
   .product-panel {
-    padding: 1rem;
-    margin-left: 0;
+    padding: 0.9rem;
     width: 100%;
     box-sizing: border-box;
     height: auto;
@@ -341,6 +373,10 @@ onUnmounted(() => {
   .cart-panel {
     display: none;
   }
+
+  .slider-wrap {
+    width: 140px;
+  }
 }
 
 /* 小屏再收紧间距 */
@@ -351,14 +387,14 @@ onUnmounted(() => {
   .category-btn {
     min-width: 80px;
     padding: 0.45rem 0.6rem;
-    font-size: 0.85rem;
+    font-size: 0.82rem;
   }
   .product-panel {
     padding: 0.75rem;
   }
-  .card-size-toolbar {
-    justify-content: center;
-    margin-bottom: 1rem;
+
+  .slider-wrap {
+    width: 120px;
   }
 }
 </style>

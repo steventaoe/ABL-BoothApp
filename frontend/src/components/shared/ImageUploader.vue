@@ -93,10 +93,6 @@ const props = defineProps({
     type: Number,
     default: 200
   },
-  initialImageUrl: {
-    type: String,
-    default: '',
-  },
 });
 
 const emit = defineEmits(['update:modelValue', 'image-removed']);
