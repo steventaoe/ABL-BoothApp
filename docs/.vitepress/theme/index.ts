@@ -2,7 +2,7 @@
 import DefaultTheme from 'vitepress/theme'
 import type { Theme } from 'vitepress'
 import { defineClientComponent } from 'vitepress'
-import Landing from './components/landing.vue'
+import Landing from './components/Landing.vue'
 import Timeline from './components/Timeline.vue'
 export default {
   extends: DefaultTheme,
