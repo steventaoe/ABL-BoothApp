@@ -12,8 +12,8 @@
 </p>
 
 <p align="center">
-  <a href="https://booth-kernel.secret-sealing.club">官网</a> ·
-  <a href="https://booth-kernel.secret-sealing.club/guide/getting-started">使用文档</a> ·
+  <a href="https://boothkernel.secret-sealing.club">官网</a> ·
+  <a href="https://boothkernel.secret-sealing.club/guide/getting-started">使用文档</a> ·
   <a href="https://github.com/Academy-of-Boundary-Landscape/ABL-BoothApp/releases">下载</a> ·
   <a href="https://github.com/Academy-of-Boundary-Landscape/ABL-BoothApp/issues">Issue</a>
 </p>
