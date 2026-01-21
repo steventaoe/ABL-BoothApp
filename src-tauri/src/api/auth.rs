@@ -152,8 +152,8 @@ async fn login_handler(
             let stored_hash = row.ok_or(AuthError::WrongCredentials)?.0;
 
             // [调试] 打印密码验证信息
-            let input_password_hash = security::hash_password(&payload.password);
-            let admin123_hash = security::hash_password("admin123");
+            // let input_password_hash = security::hash_password(&payload.password);
+            // let admin123_hash = security::hash_password("admin123");
             // println!("[DEBUG] Admin Login Attempt:");
             // println!("  Input Password: {}", &payload.password);
             // println!("  Input Password Hash: {}", input_password_hash);
