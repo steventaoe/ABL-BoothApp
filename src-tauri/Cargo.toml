@@ -43,7 +43,7 @@ uuid = { version = "1.0", features = ["v4", "serde"] }
 rust_xlsxwriter = "0.84"
 urlencoding = "2.1"
 tauri-plugin-fs = "2"
-tauri-plugin-dialog = "2"
+tauri-plugin-dialog = "2.6.0"
 zip = "0.6"
 walkdir = "2" 
 tauri-plugin-http = "2"

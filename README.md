@@ -123,8 +123,8 @@
 ```bash
 git clone https://github.com/Academy-of-Boundary-Landscape/ABL-BoothApp.git
 cd ABL-BoothApp
-pnpm install
-pnpm tauri dev
+npm install
+npm run tauri dev
 ````
 
 > 该命令会同时启动：
@@ -137,8 +137,8 @@ pnpm tauri dev
 ### Android 开发
 
 ```bash
-pnpm tauri android init
-pnpm tauri android dev
+npm run tauri android init
+npm run tauri android dev
 ```
 
 ---
@@ -148,13 +148,13 @@ pnpm tauri android dev
 #### Windows
 
 ```bash
-pnpm tauri build
+npm run tauri build
 ```
 
 #### Android
 
 ```bash
-pnpm tauri android build
+npm run tauri android build
 ```
 
 > ⚠️ Android 构建说明：

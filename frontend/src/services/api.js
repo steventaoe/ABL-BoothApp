@@ -98,19 +98,43 @@ const tauriAdapter = async (config) => {
     const duration = (performance.now() - startTime).toFixed(2);
     console.log(`✅ [Req #${reqId}] FETCH SUCCESS (${duration}ms) Status: ${response.status}`);
 
-    // E. 处理响应 Body
-    // 先读文本，避免 "body stream already read"
-    const rawText = await response.text(); 
+    // ============================================================
+    // E. 处理响应 Body (修复版)
+    // ============================================================
     
-    // [Debug] 打印原始响应内容（截断，防止太长）
-    console.log(`📦 [Req #${reqId}] RAW RESPONSE:`, rawText.substring(0, 300) + (rawText.length > 300 ? '...' : ''));
-
     let responseData;
-    try {
-      responseData = JSON.parse(rawText);
-    } catch (e) {
-      console.warn(`⚠️ [Req #${reqId}] JSON Parse failed, returning text.`);
-      responseData = rawText;
+    const responseType = config.responseType || 'json'; // 默认为 json
+
+    // 1. 如果请求的是二进制数据 (ArrayBuffer 或 Blob)
+    if (responseType === 'arraybuffer') {
+      console.log(`📦 [Req #${reqId}] Handling as ArrayBuffer`);
+      responseData = await response.arrayBuffer();
+    } 
+    else if (responseType === 'blob') {
+      console.log(`📦 [Req #${reqId}] Handling as Blob`);
+      responseData = await response.blob();
+    } 
+    // 2. 默认作为文本/JSON 处理
+    else {
+      // 先读文本
+      const rawText = await response.text(); 
+      
+      // [Debug] 打印文本内容（截断）
+      console.log(`📦 [Req #${reqId}] RAW RESPONSE:`, rawText.substring(0, 300) + (rawText.length > 300 ? '...' : ''));
+
+      try {
+        // 尝试解析 JSON，如果配置是 'json' 或未指定
+        if (responseType === 'json' || !responseType) {
+            responseData = JSON.parse(rawText);
+        } else {
+            // 如果明确指定是 'text'
+            responseData = rawText;
+        }
+      } catch (e) {
+        // 如果虽然说是 JSON 但解析失败了（或者后端发回了错误文本），回退为文本
+        console.warn(`⚠️ [Req #${reqId}] JSON Parse failed, returning text.`);
+        responseData = rawText;
+      }
     }
 
     return {
