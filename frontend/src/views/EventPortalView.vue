@@ -8,8 +8,7 @@
       
       <n-alert v-if="showAlert" type="warning" :bordered="false" class="version-alert">
         <div class="alert-content">
-          <span>该APP目前处于较早期版本，请时刻关注检查更新，避免被可能的恶性Bug困扰！</span>
-          <span>初次运行请点击上方的“管理员页面”进入后台。</span>
+          <span>该 App 仍处于早期版本，建议定期检查更新；初次使用请先进入“管理员页面”完成后台设置。</span>
           <n-button text type="primary" @click="showAlert = false" class="close-btn">关闭</n-button>
         </div>
       </n-alert>
@@ -105,12 +104,26 @@ header p {
 }
 .alert-content {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
   gap: 1rem;
+  width: 100%;
 }
 .close-btn {
   flex-shrink: 0;
+  align-self: flex-end;
+}
+/* 平板及以上屏幕 */
+@media (min-width: 768px) {
+  .alert-content {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .close-btn {
+    align-self: center;
+  }
 }
 .event-list {
   display: flex;

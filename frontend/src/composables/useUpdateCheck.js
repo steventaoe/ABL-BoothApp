@@ -2,6 +2,7 @@ import { ref } from 'vue';
 import { getVersion } from '@tauri-apps/api/app';
 import { fetch } from '@tauri-apps/plugin-http';
 import { open } from '@tauri-apps/plugin-shell';
+import { copyLink } from '@/services/clipboard';
 
 // === 配置区域 ===
 const GITHUB_USER = 'Academy-of-Boundary-Landscape';
@@ -98,6 +99,14 @@ export function useUpdateCheck() {
   };
 
   const goToDownload = async () => {
+    try {
+      // 先复制链接到剪贴板
+      await copyLink(DOWNLOAD_PAGE_URL);
+      console.debug('下载链接已复制到剪贴板');
+    } catch (e) {
+      console.error('复制链接失败:', e);
+    }
+
     if (isTauri()) {
       // 调用系统默认浏览器打开 (支持 Windows 和 Android)
       await open(DOWNLOAD_PAGE_URL);
