@@ -1,138 +1,218 @@
-import { defineStore } from 'pinia';
-import api from '@/services/api';
-import { ref } from 'vue';
+import { defineStore } from 'pinia'
+import api from '@/services/api'
+import { ref } from 'vue'
+
+function detectEnv() {
+  const isTauri = typeof window !== 'undefined' && window.__TAURI_INTERNALS__ !== undefined
+  const ua = typeof navigator !== 'undefined' ? (navigator.userAgent || '') : ''
+  const isMobileUA = /android|iphone|ipad|ipod/i.test(ua)
+  return {
+    isTauri,
+    isMobileUA,
+    isTauriDesktop: isTauri && !isMobileUA,
+    isTauriMobile: isTauri && isMobileUA
+  }
+}
+
+// 解析 Content-Disposition 的 filename / filename*
+function parseFilenameFromDisposition(disposition, fallback = 'booth_catalog.boothpack') {
+  const d = String(disposition || '')
+
+  // filename*=UTF-8''xxx
+  const mStar = d.match(/filename\*\s*=\s*([^']*)''([^;]+)/i)
+  if (mStar && mStar[2]) {
+    try {
+      return decodeURIComponent(mStar[2].trim().replace(/(^"|"$)/g, ''))
+    } catch {
+      return mStar[2].trim().replace(/(^"|"$)/g, '')
+    }
+  }
+
+  // filename="xxx"
+  const m = d.match(/filename\s*=\s*"?([^";]+)"?/i)
+  if (m && m[1]) return m[1].trim()
+  return fallback
+}
+
+function toBlob(data, mime = 'application/zip') {
+  if (data instanceof Blob) return data
+  if (data instanceof ArrayBuffer) return new Blob([new Uint8Array(data)], { type: mime })
+  // axios 在某些环境可能给 Uint8Array
+  if (data instanceof Uint8Array) return new Blob([data], { type: mime })
+  return new Blob([data], { type: mime })
+}
+
+function triggerBrowserDownload(blob, filename) {
+  const url = window.URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  window.URL.revokeObjectURL(url)
+}
 
 export const useSyncStore = defineStore('sync', () => {
-  const isExporting = ref(false);
-  const isImporting = ref(false);
-  const lastError = ref(null);
-  const isTauri = typeof window !== 'undefined' && window.__TAURI_INTERNALS__ !== undefined;
-  const isMobileUA = typeof navigator !== 'undefined' && /android|iphone|ipad|ipod/i.test(navigator.userAgent || '');
-  const isTauriDesktop = isTauri && !isMobileUA;
-  const isTauriMobile = isTauri && isMobileUA;
+  const isExporting = ref(false)
+  const isImporting = ref(false)
+  const lastError = ref(null)
+
+  const env = detectEnv()
 
   async function exportProducts() {
-    isExporting.value = true;
-    lastError.value = null;
-    try {
-      const response = await api.get('/sync/export-products', { responseType: isTauriDesktop ? 'arraybuffer' : 'blob' });
-      const disposition = response.headers['content-disposition'] || '';
-      const match = disposition.match(/filename="?([^";]+)"?/i);
-      const filename = match ? match[1] : 'booth_catalog.boothpack';
+    isExporting.value = true
+    lastError.value = null
 
-      if (isTauriDesktop) {
-        // 桌面端：调用 Tauri 保存对话框让用户选择路径
+    try {
+      // 统一用 arraybuffer 更省心（blob/arraybuffer 在不同端差异多）
+      const response = await api.get('/sync/export-products', { responseType: 'arraybuffer' })
+      const disposition = response.headers?.['content-disposition'] || response.headers?.['Content-Disposition'] || ''
+      const filename = parseFilenameFromDisposition(disposition, 'booth_catalog.boothpack')
+      const blob = toBlob(response.data, 'application/zip')
+
+      // ✅ Tauri Desktop：保存对话框 + 写文件
+      if (env.isTauriDesktop) {
         const [dialogModule, fsModule] = await Promise.all([
           import('@tauri-apps/plugin-dialog'),
-          import('@tauri-apps/plugin-fs'),
-        ]);
+          import('@tauri-apps/plugin-fs')
+        ])
 
         const filePath = await dialogModule.save({
           defaultPath: filename,
-          filters: [{ name: 'Booth Pack', extensions: ['boothpack', 'zip'] }],
-        });
+          filters: [{ name: 'Booth Pack', extensions: ['boothpack', 'zip'] }]
+        })
 
         if (!filePath) {
-          throw new Error('已取消保存');
+          // 用户取消不算“错误”
+          return { filename: null, cancelled: true }
         }
 
-        const buffer = response.data instanceof ArrayBuffer
-          ? new Uint8Array(response.data)
-          : new Uint8Array(await response.data.arrayBuffer());
-
-        await fsModule.writeFile(filePath, buffer);
-        return { filename: filePath };
+        // 把 arraybuffer 写入
+        const bytes = response.data instanceof ArrayBuffer ? new Uint8Array(response.data) : new Uint8Array(await blob.arrayBuffer())
+        await fsModule.writeFile(filePath, bytes)
+        return { filename: filePath }
       }
 
-      // Tauri 移动端或普通浏览器：优先尝试移动端分享，其次回退为下载
-      const blob = response.data instanceof Blob
-        ? response.data
-        : new Blob([response.data], { type: 'application/zip' });
+      // ✅ Tauri Mobile：优先尝试 dialog.save（如果可用），否则再走 share/web
+      if (env.isTauriMobile) {
+        // 1) 尝试用 dialog.save + fs.writeFile（如果你的移动端插件支持）
+        try {
+          const [dialogModule, fsModule] = await Promise.all([
+            import('@tauri-apps/plugin-dialog'),
+            import('@tauri-apps/plugin-fs')
+          ])
+          const filePath = await dialogModule.save({
+            defaultPath: filename,
+            filters: [{ name: 'Booth Pack', extensions: ['boothpack', 'zip'] }]
+          })
+          if (filePath) {
+            const bytes = response.data instanceof ArrayBuffer ? new Uint8Array(response.data) : new Uint8Array(await blob.arrayBuffer())
+            await fsModule.writeFile(filePath, bytes)
+            return { filename: filePath }
+          }
+          // 若用户取消
+          return { filename: null, cancelled: true }
+        } catch (e) {
+          // 2) 如果移动端不支持 save/writeFile，则尝试 Web Share
+          // （注意：Tauri WebView 未必支持 files share）
+          console.warn('[export] tauri mobile save/writeFile not available, fallback to share/web', e)
+        }
+      }
 
+      // ✅ 浏览器 or 移动端 fallback：优先 Web Share(files) 再下载
       const canUseShare = typeof navigator !== 'undefined'
         && typeof navigator.share === 'function'
-        && typeof navigator.canShare === 'function';
+        && typeof navigator.canShare === 'function'
 
       if (canUseShare) {
         try {
-          const file = new File([blob], filename, { type: 'application/zip' });
+          const file = new File([blob], filename, { type: 'application/zip' })
           if (navigator.canShare({ files: [file] })) {
             await navigator.share({
               files: [file],
               title: 'Booth Tool 制品包',
-              text: '导出的制品包，可在设备上保存或分享',
-            });
-            return { filename };
+              text: '导出的制品包，可在设备上保存或分享'
+            })
+            return { filename }
           }
         } catch (shareErr) {
-          console.warn('Web Share API failed, falling back to download', shareErr);
+          console.warn('[export] Web Share failed, fallback to download', shareErr)
         }
       }
 
-      // 回退：自动下载到浏览器默认目录
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      return { filename };
+      // 最终回退：浏览器下载（Tauri Mobile 上可能不工作，但至少不 silently succeed）
+      if (typeof window !== 'undefined') {
+        triggerBrowserDownload(blob, filename)
+        return { filename }
+      }
+
+      throw new Error('当前环境不支持下载/保存')
     } catch (err) {
-      console.error(err);
-      lastError.value = err;
-      throw new Error('导出失败，请稍后重试');
+      console.error(err)
+      lastError.value = err
+
+      // 尽量保留真实错误
+      const msg = err?.message || '导出失败，请稍后重试'
+      throw new Error(msg)
     } finally {
-      isExporting.value = false;
+      isExporting.value = false
     }
   }
 
   async function importProducts(file) {
-    if (!file) throw new Error('请选择要导入的文件');
-    isImporting.value = true;
-    lastError.value = null;
+    if (!file) throw new Error('请选择要导入的文件')
+
+    isImporting.value = true
+    lastError.value = null
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const response = await api.post('/sync/import-products', formData);
-      return response.data;
+      const formData = new FormData()
+      formData.append('file', file)
+      const response = await api.post('/sync/import-products', formData)
+      return response.data
     } catch (err) {
-      console.error(err);
-      lastError.value = err;
-      const msg = err.response?.data?.error || err.response?.data?.message || '导入失败，请检查文件格式或稍后重试';
-      throw new Error(msg);
+      console.error(err)
+      lastError.value = err
+      const msg =
+        err?.response?.data?.error ||
+        err?.response?.data?.message ||
+        err?.message ||
+        '导入失败，请检查文件格式或稍后重试'
+      throw new Error(msg)
     } finally {
-      isImporting.value = false;
+      isImporting.value = false
     }
   }
 
-  // Tauri 桌面/移动：从本地路径读取后复用导入接口
-  // skipConfirm: 如果为 true，跳过确认（因为调用方已经确认过了）
-  async function importProductsFromPath(filePath, skipConfirm = false) {
-    if (!filePath) throw new Error('未提供文件路径');
-    if (!isTauri) throw new Error('仅在 Tauri 环境可用');
-    
-    isImporting.value = true;
-    lastError.value = null;
+  // ✅ 修复：不再调用 importProducts() 以免 isImporting 双重管理
+  async function importProductsFromPath(filePath) {
+    if (!filePath) throw new Error('未提供文件路径')
+    if (!env.isTauri) throw new Error('仅在 Tauri 环境可用')
+
+    isImporting.value = true
+    lastError.value = null
     try {
-      const fsModule = await import('@tauri-apps/plugin-fs');
-      
-      // [修复点 1] v2 中使用 readFile，直接返回 Uint8Array
-      const data = await fsModule.readFile(filePath); 
-      
-      // data 已经是 Uint8Array，直接转 Blob 即可
-      const blob = new Blob([data], { type: 'application/zip' });
-      const fileName = filePath.split(/[/\\]/).pop() || 'import.boothpack';
-      const file = new File([blob], fileName, { type: 'application/zip' });
-      return await importProducts(file);
+      const fsModule = await import('@tauri-apps/plugin-fs')
+      const data = await fsModule.readFile(filePath) // Uint8Array
+      const blob = new Blob([data], { type: 'application/zip' })
+      const fileName = filePath.split(/[/\\]/).pop() || 'import.boothpack'
+      const file = new File([blob], fileName, { type: 'application/zip' })
+
+      const formData = new FormData()
+      formData.append('file', file)
+      const response = await api.post('/sync/import-products', formData)
+      return response.data
     } catch (err) {
-      console.error('[Tauri] importProductsFromPath error:', err);
-      lastError.value = err;
-      const msg = err.message || '导入失败';
-      throw new Error(msg);
+      console.error('[Tauri] importProductsFromPath error:', err)
+      lastError.value = err
+      const msg =
+        err?.response?.data?.error ||
+        err?.response?.data?.message ||
+        err?.message ||
+        '导入失败'
+      throw new Error(msg)
     } finally {
-      isImporting.value = false;
+      isImporting.value = false
     }
   }
 
@@ -142,6 +222,6 @@ export const useSyncStore = defineStore('sync', () => {
     lastError,
     exportProducts,
     importProducts,
-    importProductsFromPath,
-  };
-});
+    importProductsFromPath
+  }
+})

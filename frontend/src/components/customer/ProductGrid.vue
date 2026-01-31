@@ -1,25 +1,26 @@
 <template>
   <draggable
-  v-model="localList"
-  class="product-grid"
-  :class="[`card-size-${cardSize}`, { 'is-editing': editable }]"
-  item-key="id"
-  :animation="250"
-  ghost-class="ghost-card"
-  drag-class="drag-card"
-  :disabled="!editable"
-
-  :force-fallback="true"
-  :fallback-on-body="false"
-  :fallback-tolerance="3"
-  :touch-start-threshold="4"
-
-  @end="handleDragEnd"
->
+    v-model="localList"
+    class="product-grid"
+    :class="[`card-size-${cardSize}`, { 'is-editing': editable }]"
+    item-key="id"
+    :animation="250"
+    ghost-class="ghost-card"
+    drag-class="drag-card"
+    :disabled="!editable"
+    :force-fallback="true"
+    :fallback-on-body="false"
+    :fallback-tolerance="3"
+    :touch-start-threshold="4"
+    @end="handleDragEnd"
+  >
     <template #item="{ element: product }">
       <n-card
         class="product-card"
-        :class="{ 'out-of-stock': product.current_stock === 0 }"
+        :class="{
+          'out-of-stock': product.current_stock === 0,
+          'low-stock': !editable && product.current_stock > 0 && product.current_stock <= 10
+        }"
         embedded
         :content-style="{ padding: 0 }"
         :bordered="false"
@@ -33,7 +34,24 @@
               :alt="product.name"
               preview-disabled
               :img-props="{ loading: 'lazy', draggable: false }"
-            />
+            >
+              <!-- ✅ 加载中：Skeleton -->
+              <template #placeholder>
+                <div class="media-skeleton">
+                  <n-skeleton class="sk-img" :sharp="false" height="100%" width="100%" />
+                  <div class="sk-shine" />
+                </div>
+              </template>
+
+              <!-- ✅ 加载失败：Skeleton + 提示 -->
+              <template #error>
+                <div class="media-error">
+                  <n-skeleton class="sk-img" :sharp="false" height="100%" width="100%" />
+                  <div class="err-text">图片加载失败</div>
+                </div>
+              </template>
+            </n-image>
+
             <div v-else class="media-placeholder">
               <span class="placeholder-emoji">{{ product.name?.charAt(0) || '🛍️' }}</span>
             </div>
@@ -43,11 +61,17 @@
             </div>
 
             <template v-else>
-              <div v-if="product.current_stock > 0 && product.current_stock <= 10" class="chip stock-warning">
+              <div
+                v-if="product.current_stock > 0 && product.current_stock <= 10"
+                class="chip stock-warning"
+              >
                 <span>剩 {{ product.current_stock }}</span>
               </div>
+
+              <!-- ✅ 更美观的 SOLD OUT -->
               <div v-if="product.current_stock === 0" class="sold-overlay">
-                <span class="sold-text">SOLD OUT</span>
+                <div class="sold-badge">SOLD OUT</div>
+                <div class="sold-sub">已售罄</div>
               </div>
             </template>
           </div>
@@ -60,7 +84,7 @@
             <div class="bottom-row">
               <div class="price-wrapper">
                 <span class="currency">¥</span>
-                <span class="value">{{ Number(product.price).toFixed(2) }}</span>
+                <span class="value">{{ formatPrice(product.price) }}</span>
               </div>
 
               <div class="action-icon" v-if="!editable && product.current_stock > 0">
@@ -77,7 +101,7 @@
 <script setup>
 import { ref, watch } from 'vue'
 import draggable from 'vuedraggable'
-import { NCard, NImage } from 'naive-ui'
+import { NCard, NImage, NSkeleton } from 'naive-ui'
 
 const props = defineProps({
   products: { type: Array, default: () => [] },
@@ -91,34 +115,32 @@ const props = defineProps({
 
 const emit = defineEmits(['addToCart', 'update:products', 'order-changed'])
 
-/**
- * ✅ 关键修复：draggable 使用本地数组，避免直接 mutate props.products
- */
 const localList = ref([])
 
 watch(
   () => props.products,
   (val) => {
-    // 编辑模式下，外部如果重置 products，会打断用户拖拽；通常不建议。
-    // 这里选择：只有当“非编辑模式”或“首次进入”时才同步，以防覆盖拖拽过程。
     if (!props.editable) localList.value = Array.isArray(val) ? [...val] : []
     if (props.editable && localList.value.length === 0) localList.value = Array.isArray(val) ? [...val] : []
   },
   { immediate: true }
 )
 
-// 点击：编辑模式禁用加购
 function handleCardClick(product) {
   if (props.editable) return
   if (product?.current_stock > 0) emit('addToCart', product)
 }
 
-// 拖拽结束：把新顺序同步给父组件，并通知保存
 function handleDragEnd() {
   if (!props.editable) return
   const next = [...localList.value]
   emit('update:products', next)
   emit('order-changed')
+}
+
+function formatPrice(price) {
+  const n = Number(price)
+  return Number.isFinite(n) ? n.toFixed(2) : '--'
 }
 </script>
 
@@ -128,7 +150,6 @@ function handleDragEnd() {
   --pg-border: var(--border-color);
   --pg-accent: var(--accent-color);
   --pg-radius: 12px;
-  --pg-aspect-ratio: 1 / 1;
 
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(var(--min-col), 1fr));
@@ -136,9 +157,9 @@ function handleDragEnd() {
   padding: 4px;
 }
 
-.product-grid.card-size-small  { --min-col: 110px; --pg-aspect-ratio: 1/1; }
-.product-grid.card-size-medium { --min-col: 150px; --pg-aspect-ratio: 1/1; }
-.product-grid.card-size-large  { --min-col: 220px; --pg-aspect-ratio: 4/3; }
+.product-grid.card-size-small  { --min-col: 110px; }
+.product-grid.card-size-medium { --min-col: 150px; }
+.product-grid.card-size-large  { --min-col: 220px; }
 
 .product-card {
   border-radius: var(--pg-radius);
@@ -169,15 +190,16 @@ function handleDragEnd() {
   overflow: hidden;
 }
 
-/* 比例：默认 1/1；large 设 4/3 => padding-top = 75% */
-.product-grid { --pg-media-pad: 100%; }              /* 1/1 */
-.product-grid.card-size-large { --pg-media-pad: 75%; } /* 4/3 = 高/宽 = 3/4 */
+/* 维持网格比例（你原来的逻辑） */
+.product-grid { --pg-media-pad: 100%; }
+.product-grid.card-size-large { --pg-media-pad: 75%; }
 
 .media-box::before {
   content: "";
   display: block;
   padding-top: var(--pg-media-pad);
 }
+
 :deep(.media-img),
 .media-placeholder {
   position: absolute;
@@ -195,13 +217,69 @@ function handleDragEnd() {
   display: block;
 }
 
+/* ✅ 关键改动：cover -> contain（不裁切竖图/二维码） */
 :deep(.media-img .n-image img) {
-  object-fit: cover;
+  object-fit: contain;
   object-position: center;
+  background: var(--bg-secondary);
 }
-.media-placeholder {
+
+/* Skeleton / error 覆盖整个 media 区域 */
+.media-skeleton,
+.media-error {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
+}
+
+.media-skeleton .sk-img,
+.media-error .sk-img {
+  width: 100%;
+  height: 100%;
+}
+
+.media-skeleton {
+  overflow: hidden;
+}
+.media-skeleton .sk-shine {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    110deg,
+    rgba(255,255,255,0.0) 0%,
+    rgba(255,255,255,0.20) 30%,
+    rgba(255,255,255,0.0) 60%
+  );
+  transform: translateX(-60%);
+  animation: shine 1.2s infinite;
+}
+
+@keyframes shine {
+  0% { transform: translateX(-60%); }
+  100% { transform: translateX(60%); }
+}
+
+.media-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.media-error .err-text {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  right: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  color: rgba(0,0,0,0.55);
+  background: rgba(255,255,255,0.7);
+  border-radius: 8px;
+  padding: 6px 8px;
+  text-align: center;
+}
+
+.media-placeholder {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -214,32 +292,47 @@ function handleDragEnd() {
   top: 6px;
   right: 6px;
   padding: 2px 6px;
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 900;
   color: white;
-  background: rgba(0,0,0,0.6);
-  backdrop-filter: blur(4px);
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(6px);
 }
 .chip.stock-warning { background: #d03050; }
 
+/* ✅ 更美观 SOLD OUT：磨砂 + badge */
 .sold-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(255,255,255,0.6);
   display: flex;
+  flex-direction: column;
+  gap: 6px;
   align-items: center;
   justify-content: center;
-}
-.sold-text {
-  background: #333;
-  color: #fff;
-  padding: 4px 10px;
-  font-weight: 900;
-  font-size: 12px;
-  transform: rotate(-10deg);
+  background: rgba(255,255,255,0.55);
+  backdrop-filter: blur(6px);
 }
 
+.sold-badge {
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-weight: 950;
+  letter-spacing: 0.06em;
+  font-size: 12px;
+  color: white;
+  background: rgba(20,20,20,0.86);
+  box-shadow: 0 8px 18px rgba(0,0,0,0.18);
+  transform: rotate(-6deg);
+}
+
+.sold-sub {
+  font-size: 12px;
+  font-weight: 800;
+  color: rgba(0,0,0,0.55);
+}
+
+/* 信息区 */
 .info-box {
   padding: 10px 10px;
   flex: 1;

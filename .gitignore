@@ -89,3 +89,5 @@ target/
 
 /translate_faq.py
 /vite.config.js
+
+src-tauri/android_backup
